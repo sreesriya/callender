@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zone Calendar</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%8E%3C/text%3E%3C/svg%3E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--tx:#1c1b19;--mut:#77736b;--bd:#e4e1da;--ac:#7b1e3a;
+--z0:#e0457b;--z1:#e08a1e;--z2:#2a8f6a;--z3:#7a4fd0;--z4:#1b8fb8;--z5:#a8641f;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--card:#212120;--tx:#f0eee9;--mut:#9a968d;--bd:#34332f;--ac:#d4667a}}
+:root[data-theme="dark"]{--bg:#161615;--card:#212120;--tx:#f0eee9;--mut:#9a968d;--bd:#34332f;--ac:#d4667a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.where{font-size:13px;color:var(--mut)}
+.where b{color:var(--tx)}
+.strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px}
+.zone{flex:1 0 120px;background:var(--card);border:1px solid var(--bd);border-top:4px solid var(--c);border-radius:12px;padding:8px 10px;position:relative}
+.zone .n{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.zone .t{font-size:22px;font-weight:700;color:var(--c);font-variant-numeric:tabular-nums}
+.zone .d{font-size:11px;color:var(--mut)}
+.zone .x{position:absolute;top:4px;right:6px;border:0;background:none;color:var(--mut);cursor:pointer;font-size:14px}
+.zone.here{box-shadow:0 0 0 2px var(--c)}
+.addz{flex:0 0 auto;display:flex;align-items:center}
+select,input,button,textarea{font:inherit;color:var(--tx)}
+select,input{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 9px;width:100%}
+.btn{border:1px solid var(--bd);background:var(--card);border-radius:10px;padding:8px 12px;cursor:pointer}
+.btn.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+:root:not([data-theme="light"]) .btn.pri{color:#111}
+.bar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.tog{display:inline-flex;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:3px}
+.tog button{border:0;background:none;padding:7px 18px;border-radius:9px;cursor:pointer}
+.tog button.on{background:var(--ac);color:#fff}
+:root:not([data-theme="light"]) .tog button.on{color:#111}
+.day{margin:16px 0 6px;font-weight:700;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.card{background:var(--card);border:1px solid var(--bd);border-left:5px solid var(--k);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.row1{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.ttl{font-weight:650}
+.prim{font-size:13px;color:var(--mut);margin-top:2px}
+.prim b{color:var(--tx);font-size:15px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font-size:12px;padding:3px 8px;border-radius:999px;color:#fff;background:var(--c);font-variant-numeric:tabular-nums}
+.chip.out{background:none;color:var(--c);border:1px solid var(--c)}
+.pill{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--p);color:#fff;margin-right:4px;display:inline-block}
+.acts{display:flex;gap:10px;margin-top:8px;font-size:13px}
+.acts a,.acts button{color:var(--ac);text-decoration:none;background:none;border:0;padding:0;cursor:pointer}
+.empty{text-align:center;color:var(--mut);padding:30px}
+.sync{display:flex;gap:6px;flex-wrap:wrap;margin-top:22px;font-size:12px;color:var(--mut);align-items:center}
+.sync span.s{border:1px dashed var(--bd);padding:3px 9px;border-radius:999px}
+dialog{border:1px solid var(--bd);border-radius:16px;background:var(--card);color:var(--tx);width:min(480px,94vw);padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+label{display:block;font-size:12px;color:var(--mut);margin:10px 0 3px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cal{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:8px;margin-bottom:12px}
+.ch{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-weight:700}
+.ch button{border:1px solid var(--bd);background:none;border-radius:8px;padding:4px 12px;cursor:pointer}
+.cg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.cw{font-size:11px;color:var(--mut);text-align:center;padding:2px}
+.cd{min-height:78px;border-radius:8px;padding:3px;cursor:pointer;border:1px solid transparent;overflow:hidden;background:var(--bg)}
+.cd.o{opacity:.4}
+.cd.sel{border-color:var(--ac)}
+.cd.td .dn{color:var(--ac);text-decoration:underline}
+.dn{font-size:12px;font-weight:600}
+.ev{font-size:10px;line-height:1.25;padding:1px 4px;border-radius:4px;margin-top:2px;background:var(--k);color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.more{font-size:10px;color:var(--mut)}
+@media(max-width:560px){.cd{min-height:54px}.ev{height:6px;font-size:0;padding:0}}
+.wk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.wd{background:var(--bg);border-radius:8px;padding:4px;min-height:120px}
+.wd.td{outline:2px solid var(--ac)}
+.wh{font-size:11px;font-weight:700;color:var(--mut);margin-bottom:4px}
+.wi{background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--k);border-radius:6px;padding:4px 5px;margin-bottom:4px;cursor:pointer;font-size:11px;line-height:1.3}
+.wt{font-weight:650;overflow-wrap:anywhere}
+.wm{color:var(--mut)}
+.wc span{display:block;font-variant-numeric:tabular-nums}
+@media(max-width:700px){.wk{grid-template-columns:1fr}.wd{min-height:0}.wi{font-size:13px}.wc span{display:inline-block;margin-right:8px}}
+.dtag{text-transform:none;letter-spacing:0;margin-left:10px;background:var(--card);border:1px solid var(--bd);border-radius:999px;padding:3px 10px;font-weight:600;color:var(--tx);font-size:12px}
+.wtag{font-size:10px;color:var(--ac);margin-bottom:4px;font-weight:600;line-height:1.25}
+.fbh{font-weight:700;font-size:12px;color:var(--ac);text-transform:uppercase;letter-spacing:.05em;margin-top:14px}
+.fl .g2,.fl select{margin-top:8px}
+.g3{grid-template-columns:2fr 1fr}
+.lg{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:20px;width:min(360px,100%)}
+.strip{padding:3px 3px 6px}
+.zone{border-top:1px solid var(--bd);overflow:hidden;padding-top:12px;touch-action:manipulation;user-select:none}
+.zone::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:var(--c)}
+.zone .n{font-size:16px;font-weight:700;color:var(--c);letter-spacing:0;text-transform:none}
+.zone.here{box-shadow:none;outline:2px solid var(--c);outline-offset:-1px}
+.lnk{border:0;background:none;color:var(--ac);cursor:pointer;font-size:12px;padding:0 4px}
+textarea{width:100%;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 9px}
+.mc{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.mi{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--bd);border-radius:999px;padding:3px 10px;font-size:13px;color:var(--tx);margin:2px 4px 2px 0}
+.mi input{width:auto}
+.mg{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.mt img,.mt video{height:90px;border-radius:8px;display:block;max-width:100%}
+.fl{display:none}
+.fl.show{display:block}
+</style>
+</head>
+<body>
+<div class="wrap" id="app" style="display:none">
+  <div class="top">
+    <div><h1>Zone Calendar</h1><div class="where" id="where"></div><div class="where" id="sync"></div></div>
+    <div style="display:flex;gap:8px;align-items:center"><button class="btn pri" id="addBtn">+ Add</button></div>
+  </div>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="bar">
+    <div class="tog"><button id="tE" class="on">Events</button><button id="tP">Posts</button></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div class="where" id="hint"></div><div class="tog"><button id="vL" class="on">List</button><button id="vW">Week</button><button id="vC">Month</button></div></div>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="sync">Connections (need a backend to go live):
+    <span class="s">Google Calendar</span><span class="s">Apple Calendar</span><span class="s">Gmail scan</span><span class="s">Calendly</span><span class="s">Notifications</span>
+  </div>
+</div>
+
+<div id="login" style="position:fixed;inset:0;background:var(--bg);z-index:50;display:none;align-items:center;justify-content:center;padding:20px">
+  <div class="lg"><h1 style="margin-bottom:4px">Zone Calendar</h1><div class="where" style="margin-bottom:12px">Sign in to your calendar</div>
+  <label>Email</label><input id="lemail" type="email" autocomplete="username">
+  <label>Password</label><input id="lpw" type="password" autocomplete="current-password">
+  <button class="btn pri" id="go" style="width:100%;margin-top:14px">Sign in</button>
+  <div id="lerr" style="color:#d9534f;font-size:13px;margin-top:8px"></div></div>
+</div>
+<datalist id="cities"></datalist>
+<dialog id="locDlg"><div style="font-weight:700;font-size:17px">Where will you be?</div>
+<div class="where" style="margin:6px 0 10px">Sets your city for those dates, even before you book a flight. Default is Dallas.</div>
+<div id="stayList"></div>
+<div class="g2"><div><label>From</label><input type="date" id="sFrom"></div><div><label>To</label><input type="date" id="sTo"></div></div>
+<label>City</label><input id="sCity" list="cities" placeholder="New York">
+<div style="display:flex;justify-content:space-between;margin-top:14px"><button class="btn" id="sClose">Close</button><button class="btn pri" id="sAdd">Add</button></div></dialog>
+<dialog id="bpDlg"><img id="bpImg" alt="Boarding pass" style="max-width:100%;border-radius:8px"><div style="text-align:right;margin-top:10px"><button class="btn" id="bpClose">Close</button></div></dialog>
+<dialog id="dlg">
+  <div id="dTitle" style="font-weight:700;font-size:17px"></div>
+  <label>Title</label><input id="fTitle">
+  <div id="evF">
+    <div class="g2"><div><label>Type</label><select id="fType"></select></div>
+    <div id="tzW"><label>City</label><input id="fCity" list="cities" placeholder="Houston"><select id="fTz" style="margin-top:6px"></select></div></div>
+    <div id="modeW"><label>In person or virtual</label><select id="fMode"></select></div>
+  </div>
+  <div class="g2" id="dtRow"><div><label id="l1">Date</label><input type="date" id="fDate"></div>
+  <div><label id="l2">Time</label><input type="time" id="fTime"></div></div>
+  <div id="flightF" class="fl">
+    <div class="fbh">Departure</div><div class="g2"><input type="date" id="dDate"><input type="time" id="dTime"></div><div class="g2 g3"><input id="dCity" placeholder="Los Angeles"><input id="dCode" placeholder="LAX" maxlength="3" style="text-transform:uppercase"></div><select id="dTz"></select><div class="fbh">Arrival</div>
+    <div class="g2"><input type="date" id="aDate">
+    <input type="time" id="aTime"></div>
+    <div class="g2 g3"><input id="aCity" placeholder="Atlanta">
+    <input id="aCode" placeholder="ATL" maxlength="3" style="text-transform:uppercase"></div><select id="aTz"></select><div class="fbh">Boarding pass</div><input type="file" id="bpFile" accept="image/*" style="margin-top:8px"><div id="bpPrev"></div>
+  </div>
+  <div id="postF" class="fl">
+    <label>Platforms</label><div id="pPlat" class="mc"></div>
+    <label>Accounts</label><div id="pAcc" class="mc"></div><div id="mediaW"><label>Photos / videos</label><input type="file" id="mFile" accept="image/*,video/*" multiple><div id="mPrev"></div></div>
+    <div class="g2"><div><label>Format</label><select id="pFmt"></select></div>
+    <div><label>Status</label><select id="pStat"></select></div></div>
+    <label>Timezone</label><select id="pTz"></select>
+  </div>
+  <div id="linkW"><label>Link (Zoom, post URL…)</label><input id="fLink" placeholder="https://"><input id="fLinkLbl" placeholder="Button text, e.g. Join Zoom" style="margin-top:6px"></div>
+  <div id="locF"><label>Location (opens in Google Maps)</label><input id="fLoc" placeholder="Address or Google Maps link"><input id="fLocLbl" placeholder="Display text, e.g. Staplehouse" style="margin-top:6px"></div>
+  <label>Reminder</label><select id="fRem"><option value="0">No reminder</option><option value="5">5 min before</option><option value="10">10 min before</option><option value="15">15 min before</option><option value="30">30 min before</option><option value="60">1 hour before</option><option value="120">2 hours before</option></select>
+  <label>Notes</label><textarea id="fNote" rows="3"></textarea>
+  <div style="display:flex;justify-content:space-between;margin-top:16px">
+    <button class="btn" id="cancel">Cancel</button><button class="btn pri" id="save">Save</button>
+  </div>
+</dialog>
+
+<script>
+const $=id=>document.getElementById(id);
+const ZC=['--z0','--z1','--z2','--z3','--z4','--z5'];
+const ALLZ=['America/Los_Angeles','America/Denver','America/Chicago','America/New_York','America/Phoenix','America/Anchorage','Pacific/Honolulu','America/Toronto','America/Mexico_City','America/Sao_Paulo','Europe/London','Europe/Paris','Europe/Berlin','Africa/Lagos','Africa/Nairobi','Asia/Dubai','Asia/Kolkata','Asia/Singapore','Asia/Tokyo','Australia/Sydney'];
+const TYPES={Meeting:'#7b1e3a',Hangout:'#2a8f6a',Event:'#d99a1e',Flight:'#d9534f'};const MODES=['In person','Virtual'];
+const STAT={Posted:'#3a9d5d',Scheduled:'#7b1e3a',Draft:'#8a8578',Late:'#a82318'};
+const PLAT={Instagram:'#a56cd0',TikTok:'#e0457b',LinkedIn:'#2a74c9',Substack:'#d99a1e'};
+const ACC={StudioVem:'#e08a50','Vem Vibes':'#8a5cc0','VIBE Lab':'#c9a21e',Personal:'#4a8fcf'};
+const FMT=['Carousel','Text','Aesthetic','Vlog','Edited','Newsletter','Talking'];
+const KEY='zonecal.cloud';
+let S={zones:['America/Los_Angeles','America/Chicago','America/New_York'],home:'America/Chicago',homeCity:'Dallas',stays:[],mode:'events',items:[]};
+try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r)}catch(e){}
+if(!S.homeCity){S.home='America/Chicago';S.homeCity='Dallas'}S.stays=S.stays||[];
+if(false){
+  const t=new Date(),p=n=>String(n).padStart(2,'0'),d=o=>{const x=new Date(t.getTime()+o*864e5);return x.getFullYear()+'-'+p(x.getMonth()+1)+'-'+p(x.getDate())};
+  S.items=[
+   {id:1,kind:'event',type:'Meeting',title:'Client call (Austin)',date:d(0),time:'14:00',tz:'America/Chicago',link:'https://zoom.us',loc:''},
+   {id:2,kind:'event',type:'Flight',title:'LAX → ATL',date:d(1),time:'07:30',tz:'America/Los_Angeles',adate:d(1),atime:'15:10',atz:'America/New_York',acity:'Atlanta',link:'',loc:'LAX Airport'},
+   {id:3,kind:'event',type:'Hangout (in person)',title:'Dinner with Jordan',date:d(2),time:'19:00',tz:'America/New_York',link:'',loc:'Staplehouse, Atlanta'},
+   {id:4,kind:'event',type:'Hangout (online)',title:'Network catch-up (London)',date:d(3),time:'09:00',tz:'Europe/London',link:'https://meet.google.com',loc:''},
+   {id:5,kind:'post',title:'Vibe Lab Issue 4 post',plat:'LinkedIn',acc:'Personal',fmt:'Text',stat:'Scheduled',date:d(1),time:'09:00',tz:'America/New_York',link:''},
+   {id:6,kind:'post',title:'Gym Vlog',plat:'Instagram',acc:'Vem Vibes',fmt:'Vlog',stat:'Late',date:d(0),time:'12:00',tz:'America/Los_Angeles',link:''},
+   {id:7,kind:'post',title:'Services carousel',plat:'Instagram',acc:'StudioVem',fmt:'Carousel',stat:'Posted',date:d(-1),time:'10:00',tz:'America/Los_Angeles',link:''}];
+  S.seeded=1;
+}
+S.items.forEach(i=>{if(i.kind!=='event')return;
+ if(i.type==='Hangout (in person)'){i.type='Hangout';i.mode='In person'}
+ else if(i.type==='Hangout (online)'){i.type='Hangout';i.mode='Virtual'}
+ else if(i.type==='Other')i.type='Event';
+ if(!i.mode&&i.type!=='Flight')i.mode=i.link?'Virtual':'In person'});
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({...S,items:[]}))}catch(e){}};
+
+/* time math */
+function off(ts,tz){const f=new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric'});
+ const o={};f.formatToParts(ts).forEach(p=>o[p.type]=+p.value);return Date.UTC(o.year,o.month-1,o.day,o.hour,o.minute)-Math.floor(ts/6e4)*6e4}
+function inst(date,time,tz){const[y,m,d]=date.split('-').map(Number),[h,mi]=(time||'00:00').split(':').map(Number);
+ const g=Date.UTC(y,m-1,d,h,mi);let t=g-off(g,tz);return g-off(t,tz)}
+const abbr=(ts,tz)=>new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'short'}).formatToParts(ts).find(p=>p.type==='timeZoneName').value;
+const hm=(ts,tz)=>new Intl.DateTimeFormat('en-US',{timeZone:tz,hour:'numeric',minute:'2-digit'}).format(ts);
+const dayKey=(ts,tz)=>new Intl.DateTimeFormat('en-CA',{timeZone:tz}).format(ts);
+const dayLbl=(ts,tz)=>new Intl.DateTimeFormat('en-US',{timeZone:tz,weekday:'long',month:'short',day:'numeric'}).format(ts);
+const city=z=>z.split('/').pop().replace(/_/g,' ');
+const zc=i=>`var(${ZC[i%ZC.length]})`;
+
+function flights(){return S.items.filter(i=>i.kind==='event'&&i.type==='Flight'&&i.adate).map(f=>({at:inst(f.adate,f.atime,f.atz),tz:f.atz,city:f.acity||city(f.atz)})).sort((a,b)=>a.at-b.at)}
+function baseAt(ts){let b={tz:S.home,city:S.homeCity||city(S.home)};for(const f of flights()){if(f.at<=ts)b=f}for(const s of S.stays||[]){if(inst(s.from,'00:00',s.tz)<=ts&&ts<=inst(s.to,'23:59',s.tz))b={tz:s.tz,city:s.city}}return b}
+
+/* strip */
+function renderStrip(){
+  const now=Date.now(),cur=baseAt(now);
+  $('where').innerHTML='You’re in <b>'+cur.city+'</b> · '+abbr(now,cur.tz)+' <button class="lnk" data-loc>✎ Change</button>';
+  $('strip').innerHTML=S.zones.map((z,i)=>`<div class="zone ${z===cur.tz?'here':''}" data-rm="${i}" style="--c:${zc(i)}">
+   
+   <div class="n">${abbr(now,z)}</div><div class="t">${hm(now,z)}</div>
+   <div class="d">${new Intl.DateTimeFormat('en-US',{timeZone:z,weekday:'short',month:'short',day:'numeric'}).format(now)}${z===cur.tz?' · you’re here':''}</div></div>`).join('')+
+   `<div class="addz"><select id="addZ" style="width:140px"><option value="">+ Add zone</option>${ALLZ.filter(z=>!S.zones.includes(z)).map(z=>`<option>${z}</option>`).join('')}</select></div>`;
+  $('addZ').onchange=e=>{if(e.target.value){S.zones.push(e.target.value);save();pushSettings();render()}};
+  document.querySelectorAll('[data-rm]').forEach(b=>b.ondblclick=()=>{if(confirm('Remove timezone?')){S.zones.splice(+b.dataset.rm,1);save();pushSettings();render()}});
+}
+const chips=(ts,own)=>S.zones.map((z,i)=>`<span class="chip ${z===own?'':'out'}" style="--c:${zc(i)}">${abbr(ts,z)} ${hm(ts,z)}</span>`).join('');
+const mapUrl=q=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
+
+function render(){
+  renderStrip();
+  const ev=S.mode==='events';
+  $('tE').classList.toggle('on',ev);$('vL').classList.toggle('on',S.view!=='cal'&&S.view!=='week');$('vW').classList.toggle('on',S.view==='week');$('vC').classList.toggle('on',S.view==='cal');$('tP').classList.toggle('on',!ev);
+  $('hint').textContent=ev?'Time shown in the city you’ll be in':'Post schedule · status colors';
+  const items=S.items.filter(i=>(i.kind==='event')===ev).map(i=>({...i,ts:inst(i.date,i.time,i.tz)})).sort((a,b)=>a.ts-b.ts);
+  let shown=items,cal='';
+  if(S.view==='cal'){cal=calHtml(items,ev);shown=items.filter(i=>dayKey(i.ts,ownTz(i))===S.sel)}
+  if(S.view==='week'){$('list').innerHTML=weekHtml(items,ev);bindCal();return}
+  if(!shown.length){$('list').innerHTML=cal+(S.view==='cal'?'<div class="day"><span class="dtag" style="margin-left:0">'+dayTag(S.sel,baseAt(inst(S.sel,'12:00',S.home)).tz)+'</span></div>':'')+'<div class="empty">'+(S.view==='cal'?'Nothing on this day.':'Nothing here yet. Tap + Add.')+'</div>';bindCal();return}
+  let html='',last='';
+  for(const i of shown){
+    const own=i.type==='Flight'?i.tz:baseAt(i.ts).tz;
+    const k=dayKey(i.ts,own);
+    if(k!==last){html+=`<div class="day">${dayLbl(i.ts,own)}<span class="dtag">${dayTag(k,own)}</span></div>`;last=k}
+    if(ev){
+      let when=`<b>${hm(i.ts,own)} ${abbr(i.ts,own)}</b>`,extra='';
+      if(i.type==='Flight'&&i.adate){const a=inst(i.adate,i.atime,i.atz);when=`<b>${hm(i.ts,i.tz)} ${abbr(i.ts,i.tz)}</b> → <b>${hm(a,i.atz)} ${abbr(a,i.atz)}</b> · ${i.dcode||''} → ${i.acode||i.acity||city(i.atz)}`;extra=`<div class="prim" style="margin-top:6px">Arrival</div><div class="chips">${chips(a,i.atz)}</div>`}
+      html+=`<div class="card" style="--k:${TYPES[i.type]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)}</div><div class="prim">${i.city&&i.type!=='Flight'?esc(i.city)+' · ':''}${i.type}${i.mode?' · '+i.mode:''} · ${when}</div></div></div>
+      ${i.type==='Flight'?'<div class="prim" style="margin-top:6px">Departure</div>':''}<div class="chips">${chips(i.ts,i.tz)}</div>${extra}${acts(i)}</div>`;
+    }else{
+      html+=`<div class="card" style="--k:${STAT[i.stat]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)}</div>
+      <div style="margin-top:4px"><span class="pill" style="--p:${STAT[i.stat]}">${i.stat}</span>${arr(i.plat).map(x=>`<span class="pill" style="--p:${PLAT[x]||'#888'}">${x}</span>`).join('')}${arr(i.acc).map(x=>`<span class="pill" style="--p:${ACC[x]||'#888'}">${x}</span>`).join('')}<span class="pill" style="--p:#8a8578">${i.fmt}</span></div></div></div>
+      <div class="chips">${chips(i.ts,i.tz)}</div>${arr(i.media).length?`<div class="mg">${i.media.map(m=>`<div class="mt" data-mp="${esc(m.path)}" data-ty="${esc(m.type)}"></div>`).join('')}</div>`:''}${acts(i)}</div>`;
+    }
+  }
+  $('list').innerHTML=cal+html;bindCal();
+  document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>openForm(+b.dataset.ed));
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete?')){S.items=S.items.filter(x=>x.id!==+b.dataset.del);save();delItem(+b.dataset.del);render()}});
+}
+function acts(i){return `${i.note?`<div class="prim" style="white-space:pre-wrap;margin-top:6px">${esc(i.note)}</div>`:''}<div class="acts">${i.rem?`<span style="color:var(--mut)">🔔 ${i.rem>=60?i.rem/60+' hr':i.rem+' min'} before</span>`:''}${i.link?`<a href="${esc(i.link)}" target="_blank" rel="noopener">${esc(i.linkLabel||'Open link')}</a>`:''}${i.loc?`<a href="${/^https?:\/\//i.test(i.loc)?esc(i.loc):mapUrl(i.loc)}" target="_blank" rel="noopener">📍 ${esc(i.locLabel||(/^https?:\/\//i.test(i.loc)?'Open map':i.loc))}</a>`:''}${i.bp?`<button data-bp="${i.id}">🎫 Boarding pass</button>`:''}<button data-ed="${i.id}">Edit</button><button data-del="${i.id}" style="color:var(--mut)">Delete</button></div>`}
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+/* calendar view */
+function dayTag(k,tz){
+  const fl=S.items.filter(i=>i.kind==='event'&&i.type==='Flight'&&i.date===k).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  if(fl.length)return fl.map(f=>{const a=f.adate?inst(f.adate,f.atime||'00:00',f.atz):0;
+    return '✈ '+esc(f.dcode||f.dcity||city(f.tz))+' to '+esc(f.acode||f.acity||city(f.atz||f.tz))+' · '+hm(inst(f.date,f.time,f.tz),f.tz)+(a?' → '+hm(a,f.atz):'')}).join(' | ');
+  return '📍 In '+esc(baseAt(inst(k,'12:00',tz)).city);
+}
+function ownTz(i){return i.type==='Flight'?i.tz:baseAt(i.ts).tz}
+function calHtml(items,ev){
+  const now=dayKey(Date.now(),baseAt(Date.now()).tz);
+  if(!S.sel)S.sel=now;
+  if(!S.cm)S.cm=S.sel.slice(0,7);
+  const[y,m]=S.cm.split('-').map(Number);
+  const first=new Date(Date.UTC(y,m-1,1)),start=first.getUTCDay(),dim=new Date(Date.UTC(y,m,0)).getUTCDate();
+  const by={};items.forEach(i=>{const k=dayKey(i.ts,ownTz(i));(by[k]=by[k]||[]).push(i)});
+  let c=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="cw">${d}</div>`).join('');
+  for(let n=0;n<Math.ceil((start+dim)/7)*7;n++){
+    const dt=new Date(Date.UTC(y,m-1,1-start+n)),k=dt.toISOString().slice(0,10),out=dt.getUTCMonth()!==m-1,L=by[k]||[];
+    c+=`<div class="cd ${out?'o':''} ${k===S.sel?'sel':''} ${k===now?'td':''}" data-day="${k}"><div class="dn">${dt.getUTCDate()}</div>${L.slice(0,3).map(i=>`<div class="ev" title="${S.zones.map(z=>abbr(i.ts,z)+' '+hm(i.ts,z)).join(' · ')}" style="--k:${ev?(TYPES[i.type]||'#888'):(STAT[i.stat]||'#888')}">${hm(i.ts,ownTz(i)).replace(' ','').toLowerCase()} ${esc(i.title)}</div>`).join('')}${L.length>3?`<div class="more">+${L.length-3} more</div>`:''}</div>`;
+  }
+  const title=new Intl.DateTimeFormat('en-US',{timeZone:'UTC',month:'long',year:'numeric'}).format(first);
+  return `<div class="cal"><div class="ch"><button data-nav="-1">‹</button><span>${title}</span><button data-nav="1">›</button></div><div class="cg">${c}</div></div>`;
+}
+function weekHtml(items,ev){
+  const today=dayKey(Date.now(),baseAt(Date.now()).tz);
+  if(!S.sel)S.sel=today;
+  if(!S.wk){const d=new Date(S.sel+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-d.getUTCDay());S.wk=d.toISOString().slice(0,10)}
+  const s=new Date(S.wk+'T00:00:00Z'),by={};
+  items.forEach(i=>{const k=dayKey(i.ts,ownTz(i));(by[k]=by[k]||[]).push(i)});
+  let cols='';
+  for(let n=0;n<7;n++){
+    const d=new Date(s.getTime()+n*864e5),k=d.toISOString().slice(0,10),L=by[k]||[];
+    cols+=`<div class="wd ${k===today?'td':''}"><div class="wh">${new Intl.DateTimeFormat('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'}).format(d)} <span class="dtag" style="margin:2px 0 0">${dayTag(k,baseAt(inst(k,'12:00',S.home)).tz)}</span></div>`+
+    (L.map(i=>`<div class="wi" data-wed="${i.id}" style="--k:${ev?(TYPES[i.type]||'#888'):(STAT[i.stat]||'#888')}"><div class="wt">${esc(i.title)}</div><div class="wm">${ev?i.type+(i.mode?' · '+i.mode:''):i.stat+' · '+arr(i.plat).join(', ')}</div><div class="wc">${S.zones.map((z,j)=>`<span style="color:${zc(j)}">${abbr(i.ts,z)} ${hm(i.ts,z)}</span>`).join('')}</div></div>`).join('')||'<div class="more">—</div>')+'</div>';
+  }
+  const f=d=>new Intl.DateTimeFormat('en-US',{timeZone:'UTC',month:'short',day:'numeric'}).format(d);
+  return `<div class="cal"><div class="ch"><button data-wn="-1">‹</button><span>${f(s)} – ${f(new Date(s.getTime()+6*864e5))}</span><button data-wn="1">›</button></div><div class="wk">${cols}</div></div>`;
+}
+function bindCal(){
+  document.querySelectorAll('[data-wn]').forEach(b=>b.onclick=()=>{const d=new Date(S.wk+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+7*b.dataset.wn);S.wk=d.toISOString().slice(0,10);render()});
+  document.querySelectorAll('[data-wed]').forEach(b=>b.onclick=()=>openForm(+b.dataset.wed));
+  document.querySelectorAll('[data-day]').forEach(d=>d.onclick=()=>{S.sel=d.dataset.day;save();render()});
+  document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{const[y,m]=S.cm.split('-').map(Number);S.cm=new Date(Date.UTC(y,m-1+ +b.dataset.nav,1)).toISOString().slice(0,7);render()});
+}
+/* form */
+const opts=(a,sel)=>a.map(x=>`<option ${x===sel?'selected':''}>${x}</option>`).join('');
+const tzOpts=sel=>[...new Set([...S.zones,...ALLZ,sel].filter(Boolean))].map(z=>`<option value="${z}" ${z===sel?'selected':''}>${city(z)} (${abbr(Date.now(),z)})</option>`).join('');
+let editId=null;
+function openForm(id){
+  editId=id||null;
+  const it=id?S.items.find(x=>x.id===id):{},post=id?it.kind==='post':S.mode==='posts';
+  $('dTitle').textContent=(id?'Edit ':'New ')+(post?'post':'event');
+  $('dlg').dataset.post=post?1:'';
+  $('evF').style.display=post?'none':'block';
+  $('postF').classList.toggle('show',post);$('locF').style.display=post?'none':'block';
+  $('fTitle').value=it.title||'';
+  $('fType').innerHTML=opts(Object.keys(TYPES),it.type);$('fMode').innerHTML=opts(MODES,it.mode||'In person');
+  $('fTz').innerHTML=tzOpts(it.tz||baseAt(Date.now()).tz);$('fCity').value=it.city||(it.tz?city(it.tz):baseAt(Date.now()).city);
+  $('pTz').innerHTML=tzOpts(it.tz||S.zones[0]);
+  $('aTz').innerHTML=tzOpts(it.atz||S.zones[2]);
+  mc('pPlat',Object.keys(PLAT),it.plat);mc('pAcc',Object.keys(ACC),it.acc);mediaCur=[...arr(it.media)];mShow();
+  $('pFmt').innerHTML=opts(FMT,it.fmt);$('pStat').innerHTML=opts(Object.keys(STAT),it.stat||'Scheduled');
+  $('fDate').value=it.date||new Date().toISOString().slice(0,10);$('fTime').value=it.time||'09:00';
+  $('aDate').value=it.adate||$('fDate').value;$('aTime').value=it.atime||'';$('aCity').value=it.acity||'';$('dCity').value=it.dcity||'';$('dCode').value=it.dcode||'';$('aCode').value=it.acode||'';$('dDate').value=it.date||$('fDate').value;$('dTime').value=it.time||'';$('dTz').innerHTML=tzOpts(it.tz||baseAt(Date.now()).tz);bpData=it.bp||'';bpShow();
+  $('fLink').value=it.link||'';$('fLoc').value=it.loc||'';$('fRem').value=it.rem||0;$('fLinkLbl').value=it.linkLabel||'';$('fLocLbl').value=it.locLabel||'';$('fNote').value=it.note||'';
+  flightToggle();$('dlg').showModal();
+}
+function flightToggle(){const f=!$('dlg').dataset.post&&$('fType').value==='Flight';$('flightF').classList.toggle('show',f);$('modeW').style.display=f?'none':'block';$('linkW').style.display=f?'none':'block';$('tzW').style.display=f?'none':'block';$('dtRow').style.display=f?'none':'block';$('locF').style.display=(f||$('dlg').dataset.post)?'none':'block';
+  $('l1').textContent=f?'Departure date':'Date';$('l2').textContent=f?'Departure time':'Time'}
+$('fType').onchange=flightToggle;
+const AP={};'LAX|Los Angeles|America/Los_Angeles;SFO|San Francisco|America/Los_Angeles;OAK|Oakland|America/Los_Angeles;SJC|San Jose|America/Los_Angeles;SMF|Sacramento|America/Los_Angeles;SAN|San Diego|America/Los_Angeles;SEA|Seattle|America/Los_Angeles;PDX|Portland|America/Los_Angeles;LAS|Las Vegas|America/Los_Angeles;PHX|Phoenix|America/Phoenix;DEN|Denver|America/Denver;SLC|Salt Lake City|America/Denver;DFW|Dallas|America/Chicago;AUS|Austin|America/Chicago;HOU|Houston|America/Chicago;MSY|New Orleans|America/Chicago;MSP|Minneapolis|America/Chicago;ORD|Chicago|America/Chicago;STL|St. Louis|America/Chicago;MCI|Kansas City|America/Chicago;BNA|Nashville|America/Chicago;ATL|Atlanta|America/New_York;JFK|New York|America/New_York;EWR|Newark|America/New_York;BOS|Boston|America/New_York;PHL|Philadelphia|America/New_York;DCA|Washington DC|America/New_York;MIA|Miami|America/New_York;MCO|Orlando|America/New_York;TPA|Tampa|America/New_York;CLT|Charlotte|America/New_York;DTW|Detroit|America/New_York;HNL|Honolulu|Pacific/Honolulu;ANC|Anchorage|America/Anchorage;YYZ|Toronto|America/Toronto;YVR|Vancouver|America/Vancouver;MEX|Mexico City|America/Mexico_City;CUN|Cancun|America/Cancun;GRU|Sao Paulo|America/Sao_Paulo;LHR|London|Europe/London;CDG|Paris|Europe/Paris;AMS|Amsterdam|Europe/Amsterdam;FRA|Frankfurt|Europe/Berlin;MAD|Madrid|Europe/Madrid;FCO|Rome|Europe/Rome;DXB|Dubai|Asia/Dubai;LOS|Lagos|Africa/Lagos;ACC|Accra|Africa/Accra;JNB|Johannesburg|Africa/Johannesburg;NBO|Nairobi|Africa/Nairobi;DEL|Delhi|Asia/Kolkata;BOM|Mumbai|Asia/Kolkata;SIN|Singapore|Asia/Singapore;HND|Tokyo|Asia/Tokyo;ICN|Seoul|Asia/Seoul;SYD|Sydney|Australia/Sydney'.split(';').forEach(s=>{const[c,n,z]=s.split('|');AP[c]={n,z}});
+function apFromCode(p){const a=AP[$(p+'Code').value.toUpperCase()];if(a){$(p+'City').value=a.n;$(p+'Tz').innerHTML=tzOpts(a.z)}}
+function apFromCity(p){const v=$(p+'City').value.trim().toLowerCase();if(!v)return;const c=Object.keys(AP).find(k=>AP[k].n.toLowerCase()===v);if(c){$(p+'Code').value=c;$(p+'Tz').innerHTML=tzOpts(AP[c].z);return}const z=ALLZ.find(z=>city(z).toLowerCase()===v);if(z)$(p+'Tz').innerHTML=tzOpts(z)}
+['d','a'].forEach(p=>{$(p+'Code').oninput=()=>apFromCode(p);$(p+'City').onchange=()=>apFromCity(p)});
+let bpData='';
+function bpShow(){$('bpPrev').innerHTML=bpData?`<img src="${bpData}" alt="Boarding pass" style="max-width:100%;max-height:160px;border-radius:8px;margin-top:8px"><br><button class="btn" id="bpRm" type="button" style="margin-top:6px">Remove</button>`:'';if(bpData)$('bpRm').onclick=()=>{bpData='';$('bpFile').value='';bpShow()}}
+$('bpFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const s=Math.min(1,1400/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);bpData=c.toDataURL('image/jpeg',.75);bpShow()};im.src=r.result};r.readAsDataURL(f)};
+$('bpClose').onclick=()=>$('bpDlg').close();
+document.addEventListener('click',e=>{const b=e.target.closest('[data-bp]');if(b){const it=S.items.find(x=>x.id===+b.dataset.bp);if(it){$('bpImg').src=it.bp;$('bpDlg').showModal()}}});
+$('addBtn').onclick=()=>openForm();
+$('cancel').onclick=()=>$('dlg').close();
+$('save').onclick=()=>{
+  const post=!!$('dlg').dataset.post;
+  const o={id:editId||Date.now(),kind:post?'post':'event',title:$('fTitle').value||'Untitled',date:$('fDate').value,time:$('fTime').value,link:$('fLink').value,linkLabel:$('fLinkLbl').value,note:$('fNote').value,rem:+$('fRem').value};
+  if(post)Object.assign(o,{tz:$('pTz').value,plat:chk('pPlat'),acc:chk('pAcc'),media:mediaCur,fmt:$('pFmt').value,stat:$('pStat').value});
+  else{Object.assign(o,{tz:$('fTz').value,type:$('fType').value,loc:$('fLoc').value,locLabel:$('fLocLbl').value,city:$('fCity').value,mode:$('fType').value==='Flight'?'':$('fMode').value});
+    if(o.type==='Flight')Object.assign(o,{adate:$('aDate').value,atime:$('aTime').value,atz:$('aTz').value,acity:$('aCity').value,dcity:$('dCity').value,dcode:$('dCode').value.toUpperCase(),acode:$('aCode').value.toUpperCase(),date:$('dDate').value,time:$('dTime').value,tz:$('dTz').value,bp:bpData,link:'',loc:'',title:$('fTitle').value||(($('dCode').value||$('dCity').value)+' → '+($('aCode').value||$('aCity').value)).toUpperCase()});}
+  S.items=editId?S.items.map(x=>x.id===editId?o:x):[...S.items,o];
+  save();$('dlg').close();render();pushItem(o);
+};
+$('tE').onclick=()=>{S.mode='events';save();render()};
+$('tP').onclick=()=>{S.mode='posts';save();render()};
+$('vL').onclick=()=>{S.view='list';save();render()};
+$('vC').onclick=()=>{S.view='cal';S.cm=null;save();render()};
+$('vW').onclick=()=>{S.view='week';S.wk=null;save();render()};
+/* cloud (Supabase REST) */
+const SB_URL='https://gdycrkbbopxrwejkbiyr.supabase.co',SB_KEY='sb_publishable_RlbwzfJdPevBVRrRIx13MA_sGUu2mMK';
+let sess=null;try{sess=JSON.parse(localStorage.getItem('zc.session')||'null')}catch(e){}
+const setSess=v=>{sess=v;try{v?localStorage.setItem('zc.session',JSON.stringify(v)):localStorage.removeItem('zc.session')}catch(e){}};
+const showLogin=()=>{$('login').style.display='flex';$('app').style.display='none'};
+const showApp=()=>{$('login').style.display='none';$('app').style.display='block'};
+async function authCall(grant,body){
+  const r=await fetch(SB_URL+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json();
+  if(!r.ok)throw new Error(j.error_description||j.msg||j.message||'Login failed');
+  setSess({access:j.access_token,refresh:j.refresh_token,exp:Date.now()+j.expires_in*1000});
+}
+async function token(){
+  if(!sess)throw new Error('Signed out');
+  if(sess.exp-Date.now()<60000){try{await authCall('refresh_token',{refresh_token:sess.refresh})}catch(e){setSess(null);showLogin();throw e}}
+  return sess.access;
+}
+async function api(path,opt={}){
+  const t=await token();
+  const r=await fetch(SB_URL+'/rest/v1/'+path,{...opt,headers:{apikey:SB_KEY,Authorization:'Bearer '+t,'Content-Type':'application/json',...(opt.headers||{})}});
+  const txt=await r.text();
+  if(!r.ok){let m='';try{m=JSON.parse(txt).message}catch(e){}throw new Error(m||('Error '+r.status))}
+  return txt?JSON.parse(txt):null;
+}
+const st=t=>{$('sync').textContent=t};
+async function run(pr){st('Saving…');try{await pr;st('Saved ✓')}catch(e){st('⚠ Not saved: '+e.message)}}
+const UP={Prefer:'resolution=merge-duplicates,return=minimal'};
+function pushItem(o){
+  const ts=inst(o.date,o.time,o.tz);
+  run(api('items?on_conflict=id',{method:'POST',headers:UP,body:JSON.stringify({id:o.id,data:o,starts_at:new Date(ts).toISOString(),remind_at:o.rem?new Date(ts-o.rem*6e4).toISOString():null})}));
+}
+function delItem(id){run(api('items?id=eq.'+id,{method:'DELETE'}))}
+function pushSettings(){run(api('settings?on_conflict=user_id',{method:'POST',headers:UP,body:JSON.stringify({data:{zones:S.zones,home:S.home,homeCity:S.homeCity,stays:S.stays||[]}})}))}
+async function loadCloud(){
+  st('Loading…');
+  try{
+    const[it,se]=await Promise.all([api('items?select=id,data'),api('settings?select=data')]);
+    S.items=it.map(r=>({...r.data,id:r.id}));
+    if(se&&se[0]&&se[0].data){if(se[0].data.zones)S.zones=se[0].data.zones;if(se[0].data.homeCity){S.home=se[0].data.home;S.homeCity=se[0].data.homeCity}S.stays=se[0].data.stays||[]}
+    save();render();st('Synced ✓');
+  }catch(e){st('⚠ '+e.message)}
+}
+$('go').onclick=async()=>{
+  $('lerr').textContent='';
+  try{await authCall('password',{email:$('lemail').value.trim(),password:$('lpw').value});$('lpw').value='';showApp();loadCloud()}
+  catch(e){$('lerr').textContent=e.message}
+};
+$('lpw').onkeydown=e=>{if(e.key==='Enter')$('go').click()};
+
+/* helpers v3 */
+const arr=v=>Array.isArray(v)?v:(v?[v]:[]);
+const mc=(id,list,sel)=>{$(id).innerHTML=list.map(x=>`<label class="mi"><input type="checkbox" value="${x}" ${arr(sel).includes(x)?'checked':''}> ${x}</label>`).join('')};
+const chk=id=>[...document.querySelectorAll('#'+id+' input:checked')].map(x=>x.value);
+function cityTz(v){v=v.trim().toLowerCase();const c=Object.keys(AP).find(k=>AP[k].n.toLowerCase()===v);return c?AP[c].z:(ALLZ.find(z=>city(z).toLowerCase()===v)||null)}
+$('cities').innerHTML=[...new Set(Object.values(AP).map(a=>a.n))].map(n=>'<option value="'+n+'">').join('');
+$('fCity').onchange=()=>{const z=cityTz($('fCity').value);if(z)$('fTz').innerHTML=tzOpts(z)};
+function stayRender(){$('stayList').innerHTML=(S.stays||[]).map((x,i)=>`<div class="card" style="--k:var(--ac);display:flex;justify-content:space-between;align-items:center"><span>${x.from} → ${x.to} · <b>${esc(x.city)}</b></span><button class="btn" data-sd="${i}">✕</button></div>`).join('')||'<div class="where" style="margin-bottom:6px">None yet</div>';
+ $('stayList').querySelectorAll('[data-sd]').forEach(b=>b.onclick=()=>{S.stays.splice(+b.dataset.sd,1);save();pushSettings();stayRender();render()})}
+document.addEventListener('click',e=>{if(e.target.closest('[data-loc]')){stayRender();$('locDlg').showModal()}});
+$('sClose').onclick=()=>$('locDlg').close();
+$('sAdd').onclick=()=>{const c=$('sCity').value.trim(),f=$('sFrom').value,t=$('sTo').value||f;if(!c||!f)return;S.stays=S.stays||[];S.stays.push({from:f,to:t,city:c,tz:cityTz(c)||S.home});S.stays.sort((a,b)=>a.from.localeCompare(b.from));$('sCity').value='';save();pushSettings();stayRender();render()};
+let mediaCur=[];
+const uid=()=>JSON.parse(atob(sess.access.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).sub;
+function mShow(){$('mPrev').innerHTML=mediaCur.map((m,i)=>`<span class="mi">${esc(m.name)} <button type="button" data-mx="${i}" class="lnk">✕</button></span>`).join('');$('mPrev').querySelectorAll('[data-mx]').forEach(b=>b.onclick=()=>{mediaCur.splice(+b.dataset.mx,1);mShow()})}
+$('mFile').onchange=async e=>{for(const f of e.target.files){$('mPrev').textContent='Uploading '+f.name+'…';try{const t=await token(),path=uid()+'/'+Date.now()+'-'+f.name.replace(/[^\w.-]/g,'_');const r=await fetch(SB_URL+'/storage/v1/object/media/'+path,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+t,'Content-Type':f.type||'application/octet-stream'},body:f});if(!r.ok)throw new Error((await r.json()).message||r.status);mediaCur.push({path,type:f.type,name:f.name})}catch(err){alert('Upload failed: '+err.message)}}e.target.value='';mShow()};
+function hydrate(){document.querySelectorAll('[data-mp]:not([data-ok])').forEach(async d=>{d.dataset.ok=1;try{const t=await token();const r=await fetch(SB_URL+'/storage/v1/object/sign/media/'+d.dataset.mp,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+t,'Content-Type':'application/json'},body:'{"expiresIn":3600}'});const j=await r.json();const u=SB_URL+'/storage/v1'+j.signedURL;d.innerHTML=d.dataset.ty.startsWith('video')?`<video src="${u}" controls playsinline></video>`:`<img src="${u}" alt="">`}catch(e){d.textContent='⚠'}})}
+const r0=render;render=()=>{r0();hydrate()};
+render();setInterval(renderStrip,30000);
+if(sess){showApp();loadCloud()}else showLogin();
+</script>
+</body>
+</html>
