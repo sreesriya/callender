@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Zone Calendar</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%8E%3C/text%3E%3C/svg%3E">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -97,6 +97,9 @@ textarea{width:100%;background:var(--card);border:1px solid var(--bd);border-rad
 .mi input{width:auto}
 .mg{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .mt img,.mt video{height:90px;border-radius:8px;display:block;max-width:100%}
+body{touch-action:manipulation}
+@media(max-width:700px){input,select,textarea{font-size:16px}}
+@media(min-width:701px){.wh .dtag{display:block;width:fit-content;margin:4px 0 0!important}}
 .fl{display:none}
 .fl.show{display:block}
 </style>
@@ -117,10 +120,7 @@ textarea{width:100%;background:var(--card);border:1px solid var(--bd);border-rad
 
   <div id="list"></div>
 
-  <div class="where" style="margin-top:18px">Version 5 · Oct 30</div>
-  <div class="sync">Connections (need a backend to go live):
-    <span class="s">Google Calendar</span><span class="s">Apple Calendar</span><span class="s">Gmail scan</span><span class="s">Calendly</span><span class="s">Notifications</span>
-  </div>
+  <div class="where" style="margin-top:18px">Version 6 · Oct 31</div>
 </div>
 
 <div id="login" style="position:fixed;inset:0;background:var(--bg);z-index:50;display:none;align-items:center;justify-content:center;padding:20px">
@@ -155,6 +155,7 @@ textarea{width:100%;background:var(--card);border:1px solid var(--bd);border-rad
   </div>
   <div class="g2" id="dtRow"><div><label id="l1">Date</label><input type="date" id="fDate"></div>
   <div><label id="l2">Time</label><input type="time" id="fTime"></div></div>
+  <div id="endW"><label>End time</label><input type="time" id="fEnd"></div>
   <div id="flightF" class="fl">
     <div class="fbh">Departure</div><div class="g2"><input type="date" id="dDate"><input type="time" id="dTime"></div><div class="g2 g3"><input id="dCity" placeholder="Los Angeles"><input id="dCode" placeholder="LAX" maxlength="3" style="text-transform:uppercase"></div><select id="dTz"></select><div class="fbh">Arrival</div>
     <div class="g2"><input type="date" id="aDate">
@@ -232,21 +233,21 @@ function renderStrip(){
   $('strip').innerHTML=S.zones.map((z,i)=>`<div class="zone ${z===cur.tz?'here':''}" data-rm="${i}" style="--c:${zc(i)}">
    
    <div class="n">${abbr(now,z)}</div><div class="t">${hm(now,z)}</div>
-   <div class="d">${new Intl.DateTimeFormat('en-US',{timeZone:z,weekday:'short',month:'short',day:'numeric'}).format(now)}${z===cur.tz?' · you’re here':''}</div></div>`).join('')+
+   <div class="d">${new Intl.DateTimeFormat('en-US',{timeZone:z,weekday:'short',month:'short',day:'numeric'}).format(now)}</div></div>`).join('')+
    `<div class="addz"><select id="addZ" style="width:140px"><option value="">+ Add zone</option>${ALLZ.filter(z=>!S.zones.includes(z)).map(z=>`<option>${z}</option>`).join('')}</select></div>`;
   $('addZ').onchange=e=>{if(e.target.value){S.zones.push(e.target.value);save();pushSettings();render()}};
   document.querySelectorAll('[data-rm]').forEach(b=>b.ondblclick=()=>{if(confirm('Remove timezone?')){S.zones.splice(+b.dataset.rm,1);save();pushSettings();render()}});
 }
-const chips=(ts,own)=>S.zones.map((z,i)=>`<span class="chip ${z===own?'':'out'}" style="--c:${zc(i)}">${abbr(ts,z)} ${hm(ts,z)}</span>`).join('');
+const chips=(ts,own,end)=>S.zones.map((z,i)=>`<span class="chip ${z===own?'':'out'}" style="--c:${zc(i)}">${abbr(ts,z)} ${hm(ts,z)}${end>ts?' – '+hm(end,z):''}</span>`).join('');
 const mapUrl=q=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
 
 function render(){
   renderStrip();
   const ev=S.mode==='events';
   $('tE').classList.toggle('on',ev);$('vL').classList.toggle('on',S.view!=='cal'&&S.view!=='week');$('vW').classList.toggle('on',S.view==='week');$('vC').classList.toggle('on',S.view==='cal');$('tP').classList.toggle('on',!ev);
-  $('hint').textContent=ev?'Time shown in the city you’ll be in':'Post schedule · status colors';
-  const items=S.items.filter(i=>(i.kind==='event')===ev).map(i=>({...i,ts:inst(i.date,i.time,i.tz)})).sort((a,b)=>a.ts-b.ts);
-  let shown=items,cal='';
+  $('hint').textContent=ev?'':'Post schedule · status colors';
+  const items=S.items.filter(i=>(i.kind==='event')===ev).map(i=>{const ts=inst(i.date,i.time,i.tz);let e=ts;if(i.allday)e=ts+12*36e5;else if(i.type==='Flight'&&i.adate)e=inst(i.adate,i.atime||'00:00',i.atz);else if(i.endTime)e=inst(i.endDate||i.date,i.endTime,i.tz);return{...i,ts,endTs:e}}).sort((a,b)=>a.ts-b.ts);
+  let shown=items,cal='';if(S.view!=='cal'&&S.view!=='week'){const nw=Date.now();shown=items.filter(i=>i.endTs>=nw||i.ts>=nw||(!ev&&i.stat==='Late'))}
   if(S.view==='cal'){cal=calHtml(items,ev);shown=items.filter(i=>dayKey(i.ts,ownTz(i))===S.sel)}
   if(S.view==='week'){$('list').innerHTML=weekHtml(items,ev);bindCal();return}
   if(!shown.length){$('list').innerHTML=cal+(S.view==='cal'?'<div class="day"><span class="dtag" style="margin-left:0">'+dayTag(S.sel,baseAt(inst(S.sel,'12:00',S.home)).tz)+'</span></div>':'')+'<div class="empty">'+(S.view==='cal'?'Nothing on this day.':'Nothing here yet. Tap + Add.')+'</div>';bindCal();return}
@@ -256,10 +257,10 @@ function render(){
     const k=dayKey(i.ts,own);
     if(k!==last){html+=`<div class="day">${dayLbl(i.ts,own)}<span class="dtag">${dayTag(k,own)}</span></div>`;last=k}
     if(ev){
-      let when=i.allday?'<b>All day</b>':`<b>${hm(i.ts,own)} ${abbr(i.ts,own)}</b>`,extra='';
+      let when=i.allday?'<b>All day</b>':`<b>${hm(i.ts,own)} ${abbr(i.ts,own)}</b>`+(i.endTs>i.ts&&i.type!=='Flight'?' – '+hm(i.endTs,own):''),extra='';
       if(i.type==='Flight'&&i.adate){const a=inst(i.adate,i.atime,i.atz);when=`<b>${hm(i.ts,i.tz)} ${abbr(i.ts,i.tz)}</b> → <b>${hm(a,i.atz)} ${abbr(a,i.atz)}</b> · ${i.dcode||''} → ${i.acode||i.acity||city(i.atz)}`;extra=`<div class="prim" style="margin-top:6px">Arrival</div><div class="chips">${chips(a,i.atz)}</div>`}
       html+=`<div class="card" style="--k:${TYPES[i.type]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)} ${i.source?`<span class="pill" style="--p:#6b6a63">${esc(i.source)}</span>`:''}</div><div class="prim">${i.city&&i.type!=='Flight'?esc(i.city)+' · ':''}${i.type}${i.mode?' · '+i.mode:''} · ${when}</div></div></div>
-      ${i.type==='Flight'?'<div class="prim" style="margin-top:6px">Departure</div>':''}${i.allday?'':`<div class="chips">${chips(i.ts,i.tz)}</div>`}${extra}${acts(i)}</div>`;
+      ${i.type==='Flight'?'<div class="prim" style="margin-top:6px">Departure</div>':''}${i.allday?'':`<div class="chips">${chips(i.ts,i.tz,i.type==='Flight'?0:i.endTs)}</div>`}${extra}${acts(i)}</div>`;
     }else{
       html+=`<div class="card" style="--k:${STAT[i.stat]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)}</div>
       <div style="margin-top:4px"><span class="pill" style="--p:${STAT[i.stat]}">${i.stat}</span>${arr(i.plat).map(x=>`<span class="pill" style="--p:${PLAT[x]||'#888'}">${x}</span>`).join('')}${arr(i.acc).map(x=>`<span class="pill" style="--p:${ACC[x]||'#888'}">${x}</span>`).join('')}<span class="pill" style="--p:#8a8578">${i.fmt}</span></div></div></div>
@@ -306,7 +307,7 @@ function weekHtml(items,ev){
   for(let n=0;n<7;n++){
     const d=new Date(s.getTime()+n*864e5),k=d.toISOString().slice(0,10),L=by[k]||[];
     cols+=`<div class="wd ${k===today?'td':''}"><div class="wh">${new Intl.DateTimeFormat('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'}).format(d)} <span class="dtag" style="margin:2px 0 0">${dayTag(k,baseAt(inst(k,'12:00',S.home)).tz)}</span></div>`+
-    (L.map(i=>`<div class="wi" data-wed="${i.id}" style="--k:${ev?(TYPES[i.type]||'#888'):(STAT[i.stat]||'#888')}"><div class="wt">${esc(i.title)}</div><div class="wm">${ev?i.type+(i.mode?' · '+i.mode:''):i.stat+' · '+arr(i.plat).join(', ')}</div><div class="wc">${S.zones.map((z,j)=>`<span style="color:${zc(j)}">${abbr(i.ts,z)} ${hm(i.ts,z)}</span>`).join('')}</div></div>`).join('')||'<div class="more">—</div>')+'</div>';
+    (L.map(i=>`<div class="wi" data-wed="${i.id}" style="--k:${ev?(TYPES[i.type]||'#888'):(STAT[i.stat]||'#888')}"><div class="wt">${esc(i.title)}</div><div class="wm">${ev?i.type+(i.mode?' · '+i.mode:''):i.stat+' · '+arr(i.plat).join(', ')}</div><div class="wc">${S.zones.map((z,j)=>`<span style="color:${zc(j)}">${abbr(i.ts,z)} ${hm(i.ts,z)}${ev&&i.type!=='Flight'&&i.endTs>i.ts?' – '+hm(i.endTs,z):''}</span>`).join('')}</div></div>`).join('')||'<div class="more">—</div>')+'</div>';
   }
   const f=d=>new Intl.DateTimeFormat('en-US',{timeZone:'UTC',month:'short',day:'numeric'}).format(d);
   return `<div class="cal"><div class="ch"><button data-wn="-1">‹</button><span>${f(s)} – ${f(new Date(s.getTime()+6*864e5))}</span><button data-wn="1">›</button></div><div class="wk">${cols}</div></div>`;
@@ -337,11 +338,11 @@ function openForm(id){
   $('pFmt').innerHTML=opts(FMT,it.fmt);$('pStat').innerHTML=opts(Object.keys(STAT),it.stat||'Scheduled');
   $('fDate').value=it.date||new Date().toISOString().slice(0,10);$('fTime').value=it.time||'09:00';
   $('aDate').value=it.adate||$('fDate').value;$('aTime').value=it.atime||'';$('aCity').value=it.acity||'';$('dCity').value=it.dcity||'';$('dCode').value=it.dcode||'';$('aCode').value=it.acode||'';$('dDate').value=it.date||$('fDate').value;$('dTime').value=it.time||'';$('dTz').innerHTML=tzOpts(it.tz||baseAt(Date.now()).tz);bpData=it.bp||'';bpShow();
-  $('fLink').value=it.link||'';$('fLoc').value=it.loc||'';$('fRem').value=it.rem||0;$('fLinkLbl').value=it.linkLabel||'';$('fLocLbl').value=it.locLabel||'';$('fNote').value=it.note||'';
+  $('fLink').value=it.link||'';$('fLoc').value=it.loc||'';$('fRem').value=it.rem||0;$('fLinkLbl').value=it.linkLabel||'';$('fLocLbl').value=it.locLabel||'';$('fNote').value=it.note||'';$('fEnd').value=it.endTime||'';
   tzSync('fCity','fTz',true);tzSync('dCity','dTz',true);tzSync('aCity','aTz',true);flightToggle();$('dlg').showModal();
 }
 function flightToggle(){const f=!$('dlg').dataset.post&&$('fType').value==='Flight';$('flightF').classList.toggle('show',f);$('modeW').style.display=f?'none':'block';$('linkW').style.display=f?'none':'block';$('tzW').style.display=f?'none':'block';$('dtRow').style.display=f?'none':'block';$('locF').style.display=(f||$('dlg').dataset.post)?'none':'block';
-  $('l1').textContent=f?'Departure date':'Date';$('l2').textContent=f?'Departure time':'Time'}
+  $('l1').textContent=f?'Departure date':'Date';$('l2').textContent=f?'Departure time':($('dlg').dataset.post?'Time':'Start time');$('endW').style.display=(f||$('dlg').dataset.post)?'none':'block'}
 $('fType').onchange=flightToggle;
 const AP={};'LAX|Los Angeles|America/Los_Angeles;SFO|San Francisco|America/Los_Angeles;OAK|Oakland|America/Los_Angeles;SJC|San Jose|America/Los_Angeles;SMF|Sacramento|America/Los_Angeles;SAN|San Diego|America/Los_Angeles;SEA|Seattle|America/Los_Angeles;PDX|Portland|America/Los_Angeles;LAS|Las Vegas|America/Los_Angeles;PHX|Phoenix|America/Phoenix;DEN|Denver|America/Denver;SLC|Salt Lake City|America/Denver;DFW|Dallas|America/Chicago;AUS|Austin|America/Chicago;HOU|Houston|America/Chicago;MSY|New Orleans|America/Chicago;MSP|Minneapolis|America/Chicago;ORD|Chicago|America/Chicago;STL|St. Louis|America/Chicago;MCI|Kansas City|America/Chicago;BNA|Nashville|America/Chicago;ATL|Atlanta|America/New_York;JFK|New York|America/New_York;EWR|Newark|America/New_York;BOS|Boston|America/New_York;PHL|Philadelphia|America/New_York;DCA|Washington DC|America/New_York;MIA|Miami|America/New_York;MCO|Orlando|America/New_York;TPA|Tampa|America/New_York;CLT|Charlotte|America/New_York;DTW|Detroit|America/New_York;HNL|Honolulu|Pacific/Honolulu;ANC|Anchorage|America/Anchorage;YYZ|Toronto|America/Toronto;YVR|Vancouver|America/Vancouver;MEX|Mexico City|America/Mexico_City;CUN|Cancun|America/Cancun;GRU|Sao Paulo|America/Sao_Paulo;LHR|London|Europe/London;CDG|Paris|Europe/Paris;AMS|Amsterdam|Europe/Amsterdam;FRA|Frankfurt|Europe/Berlin;MAD|Madrid|Europe/Madrid;FCO|Rome|Europe/Rome;DXB|Dubai|Asia/Dubai;LOS|Lagos|Africa/Lagos;ACC|Accra|Africa/Accra;JNB|Johannesburg|Africa/Johannesburg;NBO|Nairobi|Africa/Nairobi;DEL|Delhi|Asia/Kolkata;BOM|Mumbai|Asia/Kolkata;SIN|Singapore|Asia/Singapore;HND|Tokyo|Asia/Tokyo;ICN|Seoul|Asia/Seoul;SYD|Sydney|Australia/Sydney'.split(';').forEach(s=>{const[c,n,z]=s.split('|');AP[c]={n,z}});
 function apFromCode(p){const a=AP[$(p+'Code').value.toUpperCase()];if(a){$(p+'City').value=a.n;$(p+'Tz').innerHTML=tzOpts(a.z)}}
@@ -360,8 +361,8 @@ $('save').onclick=()=>{
   if(!post&&(($('fType').value==='Flight')?(ck('dCity','dTz')||ck('aCity','aTz')):ck('fCity','fTz'))){alert('Choose a timezone for the city you typed.');return}
   const o={id:editId||Date.now(),kind:post?'post':'event',title:$('fTitle').value||'Untitled',date:$('fDate').value,time:$('fTime').value,link:$('fLink').value,linkLabel:$('fLinkLbl').value,note:$('fNote').value,rem:+$('fRem').value};
   if(post)Object.assign(o,{tz:$('pTz').value,plat:chk('pPlat'),acc:chk('pAcc'),media:mediaCur,fmt:$('pFmt').value,stat:$('pStat').value});
-  else{Object.assign(o,{tz:$('fTz').value,type:$('fType').value,loc:$('fLoc').value,locLabel:$('fLocLbl').value,city:$('fCity').value,mode:$('fType').value==='Flight'?'':$('fMode').value});
-    if(o.type==='Flight')Object.assign(o,{adate:$('aDate').value,atime:$('aTime').value,atz:$('aTz').value,acity:$('aCity').value,dcity:$('dCity').value,dcode:$('dCode').value.toUpperCase(),acode:$('aCode').value.toUpperCase(),date:$('dDate').value,time:$('dTime').value,tz:$('dTz').value,bp:bpData,link:'',loc:'',title:$('fTitle').value||(($('dCode').value||$('dCity').value)+' → '+($('aCode').value||$('aCity').value)).toUpperCase()});}
+  else{Object.assign(o,{tz:$('fTz').value,type:$('fType').value,loc:$('fLoc').value,locLabel:$('fLocLbl').value,city:$('fCity').value,endTime:$('fEnd').value,mode:$('fType').value==='Flight'?'':$('fMode').value});
+    if(o.type==='Flight')Object.assign(o,{adate:$('aDate').value,atime:$('aTime').value,atz:$('aTz').value,acity:$('aCity').value,dcity:$('dCity').value,dcode:$('dCode').value.toUpperCase(),acode:$('aCode').value.toUpperCase(),date:$('dDate').value,time:$('dTime').value,tz:$('dTz').value,bp:bpData,link:'',loc:'',endTime:'',title:$('fTitle').value||(($('dCode').value||$('dCity').value)+' → '+($('aCode').value||$('aCity').value)).toUpperCase()});}
   S.items=editId?S.items.map(x=>x.id===editId?o:x):[...S.items,o];
   save();$('dlg').close();render();pushItem(o);
 };
