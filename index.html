@@ -100,6 +100,15 @@ textarea{width:100%;background:var(--card);border:1px solid var(--bd);border-rad
 body{touch-action:manipulation}
 @media(max-width:700px){input,select,textarea{font-size:16px}}
 @media(min-width:701px){.wh .dtag{display:block;width:fit-content;margin:4px 0 0!important}}
+#hint:empty{display:none}
+@media(max-width:700px){
+.bar{flex-direction:column;align-items:stretch;gap:8px}
+.bar>div{width:100%}
+.bar>div:last-child{flex-direction:column!important;align-items:stretch!important;gap:8px!important}
+.tog{display:flex;width:100%}
+.tog button{flex:1;padding:8px 4px}
+#nTog{width:100%}
+}
 .fl{display:none}
 .fl.show{display:block}
 </style>
@@ -115,12 +124,12 @@ body{touch-action:manipulation}
 
   <div class="bar">
     <div class="tog"><button id="tE" class="on">Events</button><button id="tP">Posts</button></div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div class="where" id="hint"></div><div class="tog"><button id="vL" class="on">List</button><button id="vW">Week</button><button id="vC">Month</button></div></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div class="where" id="hint"></div><div class="tog"><button id="vL" class="on">List</button><button id="vW">Week</button><button id="vC">Month</button></div><button class="btn" id="nTog"></button></div>
   </div>
 
   <div id="list"></div>
 
-  <div class="where" style="margin-top:18px">Version 6 · Oct 31</div>
+  <div class="where" style="margin-top:18px">Version 8 · Oct 31</div>
 </div>
 
 <div id="login" style="position:fixed;inset:0;background:var(--bg);z-index:50;display:none;align-items:center;justify-content:center;padding:20px">
@@ -244,7 +253,7 @@ const mapUrl=q=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComp
 function render(){
   renderStrip();
   const ev=S.mode==='events';
-  $('tE').classList.toggle('on',ev);$('vL').classList.toggle('on',S.view!=='cal'&&S.view!=='week');$('vW').classList.toggle('on',S.view==='week');$('vC').classList.toggle('on',S.view==='cal');$('tP').classList.toggle('on',!ev);
+  $('tE').classList.toggle('on',ev);$('nTog').textContent=S.showNotes===false?'📝 Notes: off':'📝 Notes: on';$('vL').classList.toggle('on',S.view!=='cal'&&S.view!=='week');$('vW').classList.toggle('on',S.view==='week');$('vC').classList.toggle('on',S.view==='cal');$('tP').classList.toggle('on',!ev);
   $('hint').textContent=ev?'':'Post schedule · status colors';
   const items=S.items.filter(i=>(i.kind==='event')===ev).map(i=>{const ts=inst(i.date,i.time,i.tz);let e=ts;if(i.allday)e=ts+12*36e5;else if(i.type==='Flight'&&i.adate)e=inst(i.adate,i.atime||'00:00',i.atz);else if(i.endTime)e=inst(i.endDate||i.date,i.endTime,i.tz);return{...i,ts,endTs:e}}).sort((a,b)=>a.ts-b.ts);
   let shown=items,cal='';if(S.view!=='cal'&&S.view!=='week'){const nw=Date.now();shown=items.filter(i=>i.endTs>=nw||i.ts>=nw||(!ev&&i.stat==='Late'))}
@@ -271,7 +280,7 @@ function render(){
   document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>openForm(+b.dataset.ed));
   document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete?')){S.items=S.items.filter(x=>x.id!==+b.dataset.del);save();delItem(+b.dataset.del);render()}});
 }
-function acts(i){return `${i.note?`<div class="prim" style="white-space:pre-wrap;margin-top:6px">${esc(i.note)}</div>`:''}<div class="acts">${i.rem?`<span style="color:var(--mut)">🔔 ${i.rem>=60?i.rem/60+' hr':i.rem+' min'} before</span>`:''}${i.link?`<a href="${esc(i.link)}" target="_blank" rel="noopener">${esc(i.linkLabel||'Open link')}</a>`:''}${i.loc?`<a href="${/^https?:\/\//i.test(i.loc)?esc(i.loc):mapUrl(i.loc)}" target="_blank" rel="noopener">📍 ${esc(i.locLabel||(/^https?:\/\//i.test(i.loc)?'Open map':i.loc))}</a>`:''}${i.bp?`<button data-bp="${i.id}">🎫 Boarding pass</button>`:''}${i.source?'':`<button data-ed="${i.id}">Edit</button><button data-del="${i.id}" style="color:var(--mut)">Delete</button>`}</div>`}
+function acts(i){return `${i.note&&S.showNotes!==false?`<div class="prim" style="white-space:pre-wrap;margin-top:6px">${esc(i.note)}</div>`:''}<div class="acts">${i.rem?`<span style="color:var(--mut)">🔔 ${i.rem>=60?i.rem/60+' hr':i.rem+' min'} before</span>`:''}${i.link?`<a href="${esc(i.link)}" target="_blank" rel="noopener">${esc(i.linkLabel||'Open link')}</a>`:''}${i.loc?`<a href="${/^https?:\/\//i.test(i.loc)?esc(i.loc):mapUrl(i.loc)}" target="_blank" rel="noopener">📍 ${esc(i.locLabel||(/^https?:\/\//i.test(i.loc)?'Open map':i.loc))}</a>`:''}${i.bp?`<button data-bp="${i.id}">🎫 Boarding pass</button>`:''}${i.source?'':`<button data-ed="${i.id}">Edit</button><button data-del="${i.id}" style="color:var(--mut)">Delete</button>`}</div>`}
 function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 
 /* calendar view */
@@ -470,6 +479,7 @@ async function syncNow(quiet){
     await loadCloud();st('Synced ✓ '+(j.imported||0)+' calendar events');feedRender();
   }catch(e){st(quiet?'Synced ✓':'⚠ '+e.message)}
 }
+$('nTog').onclick=()=>{S.showNotes=S.showNotes===false;save();render()};
 $('calBtn').onclick=()=>{feedRender();$('calDlg').showModal()};
 $('fClose').onclick=()=>$('calDlg').close();
 $('fSync').onclick=()=>syncNow(false);
