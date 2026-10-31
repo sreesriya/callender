@@ -104,7 +104,7 @@ textarea{width:100%;background:var(--card);border:1px solid var(--bd);border-rad
 <body>
 <div class="wrap" id="app" style="display:none">
   <div class="top">
-    <div><h1>Zone Calendar</h1><div class="where" id="where"></div><div class="where" id="sync"></div></div>
+    <div><h1>Zone Calendar</h1><div class="where" id="where"></div><div class="where"><span id="sync"></span> <button class="lnk" id="calBtn">📅 Calendars</button></div></div>
     <div style="display:flex;gap:8px;align-items:center"><button class="btn pri" id="addBtn">+ Add</button></div>
   </div>
 
@@ -117,7 +117,7 @@ textarea{width:100%;background:var(--card);border:1px solid var(--bd);border-rad
 
   <div id="list"></div>
 
-  <div class="where" style="margin-top:18px">Version 4 · Oct 30</div>
+  <div class="where" style="margin-top:18px">Version 5 · Oct 30</div>
   <div class="sync">Connections (need a backend to go live):
     <span class="s">Google Calendar</span><span class="s">Apple Calendar</span><span class="s">Gmail scan</span><span class="s">Calendly</span><span class="s">Notifications</span>
   </div>
@@ -131,6 +131,13 @@ textarea{width:100%;background:var(--card);border:1px solid var(--bd);border-rad
   <div id="lerr" style="color:#d9534f;font-size:13px;margin-top:8px"></div></div>
 </div>
 <datalist id="cities"></datalist>
+<dialog id="calDlg"><div style="font-weight:700;font-size:17px">Calendars</div>
+<div class="where" style="margin:6px 0 10px">Paste your private calendar links. Calendly bookings arrive through Google. Imported events are read-only here.</div>
+<div id="feedList"></div>
+<label>Name</label><input id="fName" placeholder="Personal Google">
+<label>Source</label><select id="fSrc"><option>Google</option><option>Apple</option></select>
+<label>Calendar link</label><input id="fUrl" placeholder="https://… or webcal://…" autocomplete="off">
+<div style="display:flex;justify-content:space-between;margin-top:14px"><button class="btn" id="fClose">Close</button><div><button class="btn" id="fSync">Sync now</button> <button class="btn pri" id="fAdd">Add</button></div></div></dialog>
 <dialog id="locDlg"><div style="font-weight:700;font-size:17px">Where will you be?</div>
 <div class="where" style="margin:6px 0 10px">Sets your city for those dates, even before you book a flight. Default is Dallas.</div>
 <div id="stayList"></div>
@@ -249,10 +256,10 @@ function render(){
     const k=dayKey(i.ts,own);
     if(k!==last){html+=`<div class="day">${dayLbl(i.ts,own)}<span class="dtag">${dayTag(k,own)}</span></div>`;last=k}
     if(ev){
-      let when=`<b>${hm(i.ts,own)} ${abbr(i.ts,own)}</b>`,extra='';
+      let when=i.allday?'<b>All day</b>':`<b>${hm(i.ts,own)} ${abbr(i.ts,own)}</b>`,extra='';
       if(i.type==='Flight'&&i.adate){const a=inst(i.adate,i.atime,i.atz);when=`<b>${hm(i.ts,i.tz)} ${abbr(i.ts,i.tz)}</b> → <b>${hm(a,i.atz)} ${abbr(a,i.atz)}</b> · ${i.dcode||''} → ${i.acode||i.acity||city(i.atz)}`;extra=`<div class="prim" style="margin-top:6px">Arrival</div><div class="chips">${chips(a,i.atz)}</div>`}
-      html+=`<div class="card" style="--k:${TYPES[i.type]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)}</div><div class="prim">${i.city&&i.type!=='Flight'?esc(i.city)+' · ':''}${i.type}${i.mode?' · '+i.mode:''} · ${when}</div></div></div>
-      ${i.type==='Flight'?'<div class="prim" style="margin-top:6px">Departure</div>':''}<div class="chips">${chips(i.ts,i.tz)}</div>${extra}${acts(i)}</div>`;
+      html+=`<div class="card" style="--k:${TYPES[i.type]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)} ${i.source?`<span class="pill" style="--p:#6b6a63">${esc(i.source)}</span>`:''}</div><div class="prim">${i.city&&i.type!=='Flight'?esc(i.city)+' · ':''}${i.type}${i.mode?' · '+i.mode:''} · ${when}</div></div></div>
+      ${i.type==='Flight'?'<div class="prim" style="margin-top:6px">Departure</div>':''}${i.allday?'':`<div class="chips">${chips(i.ts,i.tz)}</div>`}${extra}${acts(i)}</div>`;
     }else{
       html+=`<div class="card" style="--k:${STAT[i.stat]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)}</div>
       <div style="margin-top:4px"><span class="pill" style="--p:${STAT[i.stat]}">${i.stat}</span>${arr(i.plat).map(x=>`<span class="pill" style="--p:${PLAT[x]||'#888'}">${x}</span>`).join('')}${arr(i.acc).map(x=>`<span class="pill" style="--p:${ACC[x]||'#888'}">${x}</span>`).join('')}<span class="pill" style="--p:#8a8578">${i.fmt}</span></div></div></div>
@@ -263,7 +270,7 @@ function render(){
   document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>openForm(+b.dataset.ed));
   document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete?')){S.items=S.items.filter(x=>x.id!==+b.dataset.del);save();delItem(+b.dataset.del);render()}});
 }
-function acts(i){return `${i.note?`<div class="prim" style="white-space:pre-wrap;margin-top:6px">${esc(i.note)}</div>`:''}<div class="acts">${i.rem?`<span style="color:var(--mut)">🔔 ${i.rem>=60?i.rem/60+' hr':i.rem+' min'} before</span>`:''}${i.link?`<a href="${esc(i.link)}" target="_blank" rel="noopener">${esc(i.linkLabel||'Open link')}</a>`:''}${i.loc?`<a href="${/^https?:\/\//i.test(i.loc)?esc(i.loc):mapUrl(i.loc)}" target="_blank" rel="noopener">📍 ${esc(i.locLabel||(/^https?:\/\//i.test(i.loc)?'Open map':i.loc))}</a>`:''}${i.bp?`<button data-bp="${i.id}">🎫 Boarding pass</button>`:''}<button data-ed="${i.id}">Edit</button><button data-del="${i.id}" style="color:var(--mut)">Delete</button></div>`}
+function acts(i){return `${i.note?`<div class="prim" style="white-space:pre-wrap;margin-top:6px">${esc(i.note)}</div>`:''}<div class="acts">${i.rem?`<span style="color:var(--mut)">🔔 ${i.rem>=60?i.rem/60+' hr':i.rem+' min'} before</span>`:''}${i.link?`<a href="${esc(i.link)}" target="_blank" rel="noopener">${esc(i.linkLabel||'Open link')}</a>`:''}${i.loc?`<a href="${/^https?:\/\//i.test(i.loc)?esc(i.loc):mapUrl(i.loc)}" target="_blank" rel="noopener">📍 ${esc(i.locLabel||(/^https?:\/\//i.test(i.loc)?'Open map':i.loc))}</a>`:''}${i.bp?`<button data-bp="${i.id}">🎫 Boarding pass</button>`:''}${i.source?'':`<button data-ed="${i.id}">Edit</button><button data-del="${i.id}" style="color:var(--mut)">Delete</button>`}</div>`}
 function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 
 /* calendar view */
@@ -315,7 +322,7 @@ const opts=(a,sel)=>a.map(x=>`<option ${x===sel?'selected':''}>${x}</option>`).j
 const tzOpts=sel=>[...new Set([...S.zones,...ALLZ,sel].filter(Boolean))].map(z=>`<option value="${z}" ${z===sel?'selected':''}>${city(z)} (${abbr(Date.now(),z)})</option>`).join('');
 let editId=null;
 function openForm(id){
-  editId=id||null;
+  editId=id||null;if(id&&(S.items.find(x=>x.id===id)||{}).source)return;
   const it=id?S.items.find(x=>x.id===id):{},post=id?it.kind==='post':S.mode==='posts';
   $('dTitle').textContent=(id?'Edit ':'New ')+(post?'post':'event');
   $('dlg').dataset.post=post?1:'';
@@ -407,7 +414,7 @@ async function loadCloud(){
 }
 $('go').onclick=async()=>{
   $('lerr').textContent='';
-  try{await authCall('password',{email:$('lemail').value.trim(),password:$('lpw').value});$('lpw').value='';showApp();loadCloud()}
+  try{await authCall('password',{email:$('lemail').value.trim(),password:$('lpw').value});$('lpw').value='';showApp();loadCloud().then(()=>syncNow(true))}
   catch(e){$('lerr').textContent=e.message}
 };
 $('lpw').onkeydown=e=>{if(e.key==='Enter')$('go').click()};
@@ -446,9 +453,33 @@ const uid=()=>JSON.parse(atob(sess.access.split('.')[1].replace(/-/g,'+').replac
 function mShow(){$('mPrev').innerHTML=mediaCur.map((m,i)=>`<span class="mi">${esc(m.name)} <button type="button" data-mx="${i}" class="lnk">✕</button></span>`).join('');$('mPrev').querySelectorAll('[data-mx]').forEach(b=>b.onclick=()=>{mediaCur.splice(+b.dataset.mx,1);mShow()})}
 $('mFile').onchange=async e=>{for(const f of e.target.files){$('mPrev').textContent='Uploading '+f.name+'…';try{const t=await token(),path=uid()+'/'+Date.now()+'-'+f.name.replace(/[^\w.-]/g,'_');const r=await fetch(SB_URL+'/storage/v1/object/media/'+path,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+t,'Content-Type':f.type||'application/octet-stream'},body:f});if(!r.ok)throw new Error((await r.json()).message||r.status);mediaCur.push({path,type:f.type,name:f.name})}catch(err){alert('Upload failed: '+err.message)}}e.target.value='';mShow()};
 function hydrate(){document.querySelectorAll('[data-mp]:not([data-ok])').forEach(async d=>{d.dataset.ok=1;try{const t=await token();const r=await fetch(SB_URL+'/storage/v1/object/sign/media/'+d.dataset.mp,{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+t,'Content-Type':'application/json'},body:'{"expiresIn":3600}'});const j=await r.json();const u=SB_URL+'/storage/v1'+j.signedURL;d.innerHTML=d.dataset.ty.startsWith('video')?`<video src="${u}" controls playsinline></video>`:`<img src="${u}" alt="">`}catch(e){d.textContent='⚠'}})}
+async function feedRender(){
+  let rows=[];
+  try{rows=await api('feeds?select=id,label,source,synced_at&order=id')}catch(e){$('feedList').innerHTML='<div class="where">⚠ '+esc(e.message)+'. Run the calendar SQL in Supabase first.</div>';return}
+  $('feedList').innerHTML=rows.map(r=>`<div class="card" style="--k:var(--ac);display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>${esc(r.label)}</b> · ${esc(r.source)}<br><span class="where">${r.synced_at?'Synced '+new Date(r.synced_at).toLocaleString():'Not synced yet'}</span></span><button class="btn" data-fd="${r.id}">✕</button></div>`).join('')||'<div class="where" style="margin-bottom:6px">No calendars yet</div>';
+  $('feedList').querySelectorAll('[data-fd]').forEach(b=>b.onclick=async()=>{if(!confirm('Remove this calendar and its imported events?'))return;try{await api('items?ext_uid=like.'+b.dataset.fd+':*',{method:'DELETE'});await api('feeds?id=eq.'+b.dataset.fd,{method:'DELETE'});feedRender();loadCloud()}catch(e){alert(e.message)}});
+}
+async function syncNow(quiet){
+  st('Syncing calendars…');
+  try{
+    const t=await token();
+    const r=await fetch(SB_URL+'/functions/v1/sync-calendars',{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+t}});
+    if(r.status===404){st(quiet?'Synced ✓':'⚠ Calendar function not deployed yet');return}
+    const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);
+    await loadCloud();st('Synced ✓ '+(j.imported||0)+' calendar events');feedRender();
+  }catch(e){st(quiet?'Synced ✓':'⚠ '+e.message)}
+}
+$('calBtn').onclick=()=>{feedRender();$('calDlg').showModal()};
+$('fClose').onclick=()=>$('calDlg').close();
+$('fSync').onclick=()=>syncNow(false);
+$('fAdd').onclick=async()=>{
+  const label=$('fName').value.trim()||'Calendar',url=$('fUrl').value.trim();
+  if(!/^(https?|webcal):\/\//i.test(url)){alert('Paste the full calendar link.');return}
+  try{await api('feeds',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({label,source:$('fSrc').value,url})});$('fName').value='';$('fUrl').value='';await feedRender();syncNow(false)}catch(e){alert(e.message)}
+};
 const r0=render;render=()=>{r0();hydrate()};
 render();setInterval(renderStrip,30000);
-if(sess){showApp();loadCloud()}else showLogin();
+if(sess){showApp();loadCloud().then(()=>syncNow(true))}else showLogin();
 </script>
 </body>
 </html>
