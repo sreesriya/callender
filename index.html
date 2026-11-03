@@ -129,7 +129,7 @@ body{touch-action:manipulation}
 
   <div id="list"></div>
 
-  <div class="where" style="margin-top:18px">Version 9 · Oct 31</div>
+  <div class="where" style="margin-top:18px">Version 10 · Oct 31</div>
 </div>
 
 <div id="login" style="position:fixed;inset:0;background:var(--bg);z-index:50;display:none;align-items:center;justify-content:center;padding:20px">
@@ -255,7 +255,7 @@ function render(){
   const ev=S.mode==='events';
   $('tE').classList.toggle('on',ev);$('vL').classList.toggle('on',S.view!=='cal'&&S.view!=='week');$('vW').classList.toggle('on',S.view==='week');$('vC').classList.toggle('on',S.view==='cal');$('tP').classList.toggle('on',!ev);
   $('hint').textContent='';
-  const items=S.items.filter(i=>(i.kind==='event')===ev).map(i=>{const ts=inst(i.date,i.time,i.tz);let e=ts;if(i.allday)e=ts+12*36e5;else if(i.type==='Flight'&&i.adate)e=inst(i.adate,i.atime||'00:00',i.atz);else if(i.endTime)e=inst(i.endDate||i.date,i.endTime,i.tz);return{...i,ts,endTs:e}}).sort((a,b)=>a.ts-b.ts);
+  const items=S.items.filter(i=>(i.kind==='event')===ev&&!i.hidden).map(i=>{const ts=inst(i.date,i.time,i.tz);let e=ts;if(i.allday)e=ts+12*36e5;else if(i.type==='Flight'&&i.adate)e=inst(i.adate,i.atime||'00:00',i.atz);else if(i.endTime)e=inst(i.endDate||i.date,i.endTime,i.tz);return{...i,ts,endTs:e}}).sort((a,b)=>a.ts-b.ts);
   let shown=items,cal='';if(S.view!=='cal'&&S.view!=='week'){const nw=Date.now();shown=items.filter(i=>i.endTs>=nw||i.ts>=nw||(!ev&&i.stat==='Late'))}
   if(S.view==='cal'){cal=calHtml(items,ev);shown=items.filter(i=>dayKey(i.ts,ownTz(i))===S.sel)}
   if(S.view==='week'){$('list').innerHTML=weekHtml(items,ev);bindCal();return}
@@ -268,7 +268,7 @@ function render(){
     if(ev){
       let when=i.allday?'<b>All day</b>':`<b>${hm(i.ts,own)} ${abbr(i.ts,own)}</b>`+(i.endTs>i.ts&&i.type!=='Flight'?' – '+hm(i.endTs,own):''),extra='';
       if(i.type==='Flight'&&i.adate){const a=inst(i.adate,i.atime,i.atz);when=`<b>${hm(i.ts,i.tz)} ${abbr(i.ts,i.tz)}</b> → <b>${hm(a,i.atz)} ${abbr(a,i.atz)}</b> · ${i.dcode||''} → ${i.acode||i.acity||city(i.atz)}`;extra=`<div class="prim" style="margin-top:6px">Arrival</div><div class="chips">${chips(a,i.atz)}</div>`}
-      html+=`<div class="card" style="--k:${TYPES[i.type]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)} ${i.source?`<span class="pill" style="--p:#6b6a63">${esc(i.source)}</span>`:''}</div><div class="prim">${i.city&&i.type!=='Flight'?esc(i.city)+' · ':''}${i.type}${i.mode?' · '+i.mode:''} · ${when}</div></div></div>
+      html+=`<div class="card" style="--k:${TYPES[i.type]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)} ${i.source?`<span class="pill" style="--p:#6b6a63">${esc(i.source)}${i.edited?' · edited':''}</span>`:''}</div><div class="prim">${i.city&&i.type!=='Flight'?esc(i.city)+' · ':''}${i.type}${i.mode?' · '+i.mode:''} · ${when}</div></div></div>
       ${i.type==='Flight'?'<div class="prim" style="margin-top:6px">Departure</div>':''}${i.allday?'':`<div class="chips">${chips(i.ts,i.tz,i.type==='Flight'?0:i.endTs)}</div>`}${extra}${acts(i)}</div>`;
     }else{
       html+=`<div class="card" style="--k:${STAT[i.stat]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)}</div>
@@ -278,9 +278,9 @@ function render(){
   }
   $('list').innerHTML=cal+html;bindCal();
   document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>openForm(+b.dataset.ed));
-  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete?')){S.items=S.items.filter(x=>x.id!==+b.dataset.del);save();delItem(+b.dataset.del);render()}});
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete?')){const it0=S.items.find(x=>x.id===+b.dataset.del);if(it0&&it0.source){it0.hidden=true;it0.edited=true;pushItem(it0)}else{S.items=S.items.filter(x=>x.id!==+b.dataset.del);delItem(+b.dataset.del)}save();render()}});
 }
-function acts(i){return `${i.note&&(S.openNotes||{})[i.id]?`<div class="prim" style="white-space:pre-wrap;margin-top:6px">${esc(i.note)}</div>`:''}<div class="acts">${i.note?`<button data-nt="${i.id}">📝 ${(S.openNotes||{})[i.id]?'Hide':'Show'} notes</button>`:''}${i.rem?`<span style="color:var(--mut)">🔔 ${i.rem>=60?i.rem/60+' hr':i.rem+' min'} before</span>`:''}${i.link?`<a href="${esc(i.link)}" target="_blank" rel="noopener">${esc(i.linkLabel||'Open link')}</a>`:''}${i.loc?`<a href="${/^https?:\/\//i.test(i.loc)?esc(i.loc):mapUrl(i.loc)}" target="_blank" rel="noopener">📍 ${esc(i.locLabel||(/^https?:\/\//i.test(i.loc)?'Open map':i.loc))}</a>`:''}${i.bp?`<button data-bp="${i.id}">🎫 Boarding pass</button>`:''}${i.source?'':`<button data-ed="${i.id}">Edit</button><button data-del="${i.id}" style="color:var(--mut)">Delete</button>`}</div>`}
+function acts(i){return `${i.note&&(S.openNotes||{})[i.id]?`<div class="prim" style="white-space:pre-wrap;margin-top:6px">${esc(i.note)}</div>`:''}<div class="acts">${i.note?`<button data-nt="${i.id}">📝 ${(S.openNotes||{})[i.id]?'Hide':'Show'} notes</button>`:''}${i.rem?`<span style="color:var(--mut)">🔔 ${i.rem>=60?i.rem/60+' hr':i.rem+' min'} before</span>`:''}${i.link?`<a href="${esc(i.link)}" target="_blank" rel="noopener">${esc(i.linkLabel||'Open link')}</a>`:''}${i.loc?`<a href="${/^https?:\/\//i.test(i.loc)?esc(i.loc):mapUrl(i.loc)}" target="_blank" rel="noopener">📍 ${esc(i.locLabel||(/^https?:\/\//i.test(i.loc)?'Open map':i.loc))}</a>`:''}${i.bp?`<button data-bp="${i.id}">🎫 Boarding pass</button>`:''}<button data-ed="${i.id}">Edit</button><button data-del="${i.id}" style="color:var(--mut)">Delete</button>${i.source&&i.edited?`<button data-rs="${i.id}">Restore original</button>`:''}</div>`}
 function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 
 /* calendar view */
@@ -332,7 +332,7 @@ const opts=(a,sel)=>a.map(x=>`<option ${x===sel?'selected':''}>${x}</option>`).j
 const tzOpts=sel=>[...new Set([...S.zones,...ALLZ,sel].filter(Boolean))].map(z=>`<option value="${z}" ${z===sel?'selected':''}>${city(z)} (${abbr(Date.now(),z)})</option>`).join('');
 let editId=null;
 function openForm(id){
-  editId=id||null;if(id&&(S.items.find(x=>x.id===id)||{}).source)return;
+  editId=id||null;
   const it=id?S.items.find(x=>x.id===id):{},post=id?it.kind==='post':S.mode==='posts';
   $('dTitle').textContent=(id?'Edit ':'New ')+(post?'post':'event');
   $('dlg').dataset.post=post?1:'';
@@ -372,6 +372,7 @@ $('save').onclick=()=>{
   if(post)Object.assign(o,{tz:$('pTz').value,plat:chk('pPlat'),acc:chk('pAcc'),media:mediaCur,fmt:$('pFmt').value,stat:$('pStat').value});
   else{Object.assign(o,{tz:$('fTz').value,type:$('fType').value,loc:$('fLoc').value,locLabel:$('fLocLbl').value,city:$('fCity').value,endTime:$('fEnd').value,mode:$('fType').value==='Flight'?'':$('fMode').value});
     if(o.type==='Flight')Object.assign(o,{adate:$('aDate').value,atime:$('aTime').value,atz:$('aTz').value,acity:$('aCity').value,dcity:$('dCity').value,dcode:$('dCode').value.toUpperCase(),acode:$('aCode').value.toUpperCase(),date:$('dDate').value,time:$('dTime').value,tz:$('dTz').value,bp:bpData,link:'',loc:'',endTime:'',title:$('fTitle').value||(($('dCode').value||$('dCity').value)+' → '+($('aCode').value||$('aCity').value)).toUpperCase()});}
+  if(editId){const old=S.items.find(x=>x.id===editId)||{};['source','endDate','hidden'].forEach(k=>{if(old[k]!==undefined)o[k]=old[k]});if(old.allday&&!o.endTime)o.allday=true;if(old.source)o.edited=true}
   S.items=editId?S.items.map(x=>x.id===editId?o:x):[...S.items,o];
   save();$('dlg').close();render();pushItem(o);
 };
@@ -409,7 +410,7 @@ async function run(pr){st('Saving…');try{await pr;st('Saved ✓')}catch(e){st(
 const UP={Prefer:'resolution=merge-duplicates,return=minimal'};
 function pushItem(o){
   const ts=inst(o.date,o.time,o.tz);
-  run(api('items?on_conflict=id',{method:'POST',headers:UP,body:JSON.stringify({id:o.id,data:o,starts_at:new Date(ts).toISOString(),remind_at:o.rem?new Date(ts-o.rem*6e4).toISOString():null})}));
+  run(api('items?on_conflict=id',{method:'POST',headers:UP,body:JSON.stringify({id:o.id,data:o,starts_at:new Date(ts).toISOString(),remind_at:o.rem?new Date(ts-o.rem*6e4).toISOString():null,...(o.source?{edited:true}:{})})}));
 }
 function delItem(id){run(api('items?id=eq.'+id,{method:'DELETE'}))}
 function pushSettings(){run(api('settings?on_conflict=user_id',{method:'POST',headers:UP,body:JSON.stringify({data:{zones:S.zones,home:S.home,homeCity:S.homeCity,stays:S.stays||[]}})}))}
@@ -479,7 +480,7 @@ async function syncNow(quiet){
     await loadCloud();st('Synced ✓ '+(j.imported||0)+' calendar events');feedRender();
   }catch(e){st(quiet?'Synced ✓':'⚠ '+e.message)}
 }
-document.addEventListener('click',e=>{const b=e.target.closest('[data-nt]');if(b){S.openNotes=S.openNotes||{};S.openNotes[b.dataset.nt]=!S.openNotes[b.dataset.nt];save();render()}});
+document.addEventListener('click',async e=>{const rb=e.target.closest('[data-rs]');if(rb){if(!confirm('Restore the original calendar version?'))return;try{await api('items?id=eq.'+rb.dataset.rs,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({edited:false})});await syncNow(false)}catch(err){alert(err.message)}return}const b=e.target.closest('[data-nt]');if(b){S.openNotes=S.openNotes||{};S.openNotes[b.dataset.nt]=!S.openNotes[b.dataset.nt];save();render()}});
 $('calBtn').onclick=()=>{feedRender();$('calDlg').showModal()};
 $('fClose').onclick=()=>$('calDlg').close();
 $('fSync').onclick=()=>syncNow(false);
