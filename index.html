@@ -109,6 +109,7 @@ body{touch-action:manipulation}
 .tog button{flex:1;padding:8px 4px}
 #nTog{width:100%}
 }
+.wd.sel{background:var(--card);box-shadow:inset 0 0 0 1px var(--ac)}
 .fl{display:none}
 .fl.show{display:block}
 </style>
@@ -117,7 +118,7 @@ body{touch-action:manipulation}
 <div class="wrap" id="app" style="display:none">
   <div class="top">
     <div><h1>Zone Calendar</h1><div class="where" id="where"></div><div class="where"><span id="sync"></span> <button class="lnk" id="calBtn">📅 Calendars</button></div></div>
-    <div style="display:flex;gap:8px;align-items:center"><button class="btn pri" id="addBtn">+ Add</button></div>
+    <div style="display:flex;gap:8px;align-items:center"><button class="btn" id="impBtn">✨ Import</button><button class="btn pri" id="addBtn">+ Add</button></div>
   </div>
 
   <div class="strip" id="strip"></div>
@@ -129,7 +130,7 @@ body{touch-action:manipulation}
 
   <div id="list"></div>
 
-  <div class="where" style="margin-top:18px">Version 10 · Oct 31</div>
+  <div class="where" style="margin-top:18px">Version 11 · Oct 31</div>
 </div>
 
 <div id="login" style="position:fixed;inset:0;background:var(--bg);z-index:50;display:none;align-items:center;justify-content:center;padding:20px">
@@ -139,6 +140,12 @@ body{touch-action:manipulation}
   <button class="btn pri" id="go" style="width:100%;margin-top:14px">Sign in</button>
   <div id="lerr" style="color:#d9534f;font-size:13px;margin-top:8px"></div></div>
 </div>
+<dialog id="impDlg"><div style="font-weight:700;font-size:17px">Import an event</div>
+<div class="where" style="margin:6px 0 10px">Paste text from an email, or paste or upload a screenshot. I’ll fill in the form so you can check it before saving.</div>
+<textarea id="impTxt" rows="6" placeholder="Paste email text or a screenshot here…"></textarea>
+<label>Screenshot</label><input type="file" id="impFile" accept="image/*">
+<div id="impSt" class="where" style="margin-top:8px"></div>
+<div style="display:flex;justify-content:space-between;margin-top:14px"><button class="btn" id="impClose">Cancel</button><button class="btn pri" id="impRead">Read text</button></div></dialog>
 <datalist id="cities"></datalist>
 <dialog id="calDlg"><div style="font-weight:700;font-size:17px">Calendars</div>
 <div class="where" style="margin:6px 0 10px">Paste your private calendar links. Calendly bookings arrive through Google. Imported events are read-only here.</div>
@@ -315,7 +322,7 @@ function weekHtml(items,ev){
   let cols='';
   for(let n=0;n<7;n++){
     const d=new Date(s.getTime()+n*864e5),k=d.toISOString().slice(0,10),L=by[k]||[];
-    cols+=`<div class="wd ${k===today?'td':''}"><div class="wh">${new Intl.DateTimeFormat('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'}).format(d)} <span class="dtag" style="margin:2px 0 0">${dayTag(k,baseAt(inst(k,'12:00',S.home)).tz)}</span></div>`+
+    cols+=`<div class="wd ${k===today?'td':''} ${k===S.sel?'sel':''}" data-day="${k}"><div class="wh">${new Intl.DateTimeFormat('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'}).format(d)} <span class="dtag" style="margin:2px 0 0">${dayTag(k,baseAt(inst(k,'12:00',S.home)).tz)}</span></div>`+
     (L.map(i=>`<div class="wi" data-wed="${i.id}" style="--k:${ev?(TYPES[i.type]||'#888'):(STAT[i.stat]||'#888')}"><div class="wt">${esc(i.title)}</div><div class="wm">${ev?i.type+(i.mode?' · '+i.mode:''):i.stat+' · '+arr(i.plat).join(', ')}</div><div class="wc">${S.zones.map((z,j)=>`<span style="color:${zc(j)}">${abbr(i.ts,z)} ${hm(i.ts,z)}${ev&&i.type!=='Flight'&&i.endTs>i.ts?' – '+hm(i.endTs,z):''}</span>`).join('')}</div></div>`).join('')||'<div class="more">—</div>')+'</div>';
   }
   const f=d=>new Intl.DateTimeFormat('en-US',{timeZone:'UTC',month:'short',day:'numeric'}).format(d);
@@ -323,7 +330,7 @@ function weekHtml(items,ev){
 }
 function bindCal(){
   document.querySelectorAll('[data-wn]').forEach(b=>b.onclick=()=>{const d=new Date(S.wk+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+7*b.dataset.wn);S.wk=d.toISOString().slice(0,10);render()});
-  document.querySelectorAll('[data-wed]').forEach(b=>b.onclick=()=>openForm(+b.dataset.wed));
+  document.querySelectorAll('[data-wed]').forEach(b=>b.onclick=e=>{e.stopPropagation();openForm(+b.dataset.wed)});
   document.querySelectorAll('[data-day]').forEach(d=>d.onclick=()=>{S.sel=d.dataset.day;save();render()});
   document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{const[y,m]=S.cm.split('-').map(Number);S.cm=new Date(Date.UTC(y,m-1+ +b.dataset.nav,1)).toISOString().slice(0,7);render()});
 }
@@ -333,7 +340,7 @@ const tzOpts=sel=>[...new Set([...S.zones,...ALLZ,sel].filter(Boolean))].map(z=>
 let editId=null;
 function openForm(id){
   editId=id||null;
-  const it=id?S.items.find(x=>x.id===id):{},post=id?it.kind==='post':S.mode==='posts';
+  const it=id?S.items.find(x=>x.id===id):(window.__draft||{}),post=id?it.kind==='post':(window.__draft?false:S.mode==='posts');
   $('dTitle').textContent=(id?'Edit ':'New ')+(post?'post':'event');
   $('dlg').dataset.post=post?1:'';
   $('evF').style.display=post?'none':'block';
@@ -345,7 +352,7 @@ function openForm(id){
   $('aTz').innerHTML=tzOpts(it.atz||S.zones[2]);
   mc('pPlat',Object.keys(PLAT),it.plat);mc('pAcc',Object.keys(ACC),it.acc);mediaCur=[...arr(it.media)];mShow();
   $('pFmt').innerHTML=opts(FMT,it.fmt);$('pStat').innerHTML=opts(Object.keys(STAT),it.stat||'Scheduled');
-  $('fDate').value=it.date||new Date().toISOString().slice(0,10);$('fTime').value=it.time||'09:00';
+  $('fDate').value=it.date||((S.view==='cal'||S.view==='week')&&S.sel)||new Date().toISOString().slice(0,10);$('fTime').value=it.time||'09:00';
   $('aDate').value=it.adate||$('fDate').value;$('aTime').value=it.atime||'';$('aCity').value=it.acity||'';$('dCity').value=it.dcity||'';$('dCode').value=it.dcode||'';$('aCode').value=it.acode||'';$('dDate').value=it.date||$('fDate').value;$('dTime').value=it.time||'';$('dTz').innerHTML=tzOpts(it.tz||baseAt(Date.now()).tz);bpData=it.bp||'';bpShow();
   $('fLink').value=it.link||'';$('fLoc').value=it.loc||'';$('fRem').value=it.rem||0;$('fLinkLbl').value=it.linkLabel||'';$('fLocLbl').value=it.locLabel||'';$('fNote').value=it.note||'';$('fEnd').value=it.endTime||'';
   tzSync('fCity','fTz',true);tzSync('dCity','dTz',true);tzSync('aCity','aTz',true);flightToggle();$('dlg').showModal();
@@ -489,6 +496,60 @@ $('fAdd').onclick=async()=>{
   if(!/^(https?|webcal):\/\//i.test(url)){alert('Paste the full calendar link.');return}
   try{await api('feeds',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({label,source:$('fSrc').value,url})});$('fName').value='';$('fUrl').value='';await feedRender();syncNow(false)}catch(e){alert(e.message)}
 };
+/* import from text / screenshot */
+const MON={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,sept:8,oct:9,nov:10,dec:11};
+const DOWF=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+const TZM={PST:'America/Los_Angeles',PDT:'America/Los_Angeles',PT:'America/Los_Angeles',MST:'America/Denver',MDT:'America/Denver',MT:'America/Denver',CST:'America/Chicago',CDT:'America/Chicago',CT:'America/Chicago',EST:'America/New_York',EDT:'America/New_York',ET:'America/New_York'};
+const p2=n=>String(n).padStart(2,'0');
+function parseText(raw){
+  const t=raw.replace(/\u00a0/g,' '),now=new Date(),yr=now.getFullYear();
+  let y=null,mo=null,d=null,m,dt=null;
+  if(m=t.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/i)){mo=MON[m[1].toLowerCase()];d=+m[2];y=m[3]?+m[3]:null}
+  else if(m=t.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\.?(?:,?\s+(\d{4}))?\b/i)){d=+m[1];mo=MON[m[2].toLowerCase()];y=m[3]?+m[3]:null}
+  else if(m=t.match(/\b(\d{4})-(\d{2})-(\d{2})\b/)){y=+m[1];mo=+m[2]-1;d=+m[3]}
+  else if(m=t.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/)){mo=+m[1]-1;d=+m[2];y=m[3]?(+m[3]<100?2000+ +m[3]:+m[3]):null}
+  if(d!=null){dt=new Date(y||yr,mo,d);if(!y&&dt<new Date(yr,now.getMonth(),now.getDate()-1))dt=new Date(yr+1,mo,d)}
+  else if(m=t.match(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i)){const w=DOWF.indexOf(m[1].toLowerCase());dt=new Date(yr,now.getMonth(),now.getDate());dt.setDate(dt.getDate()+((w-dt.getDay()+7)%7||7))}
+  else if(/\btomorrow\b/i.test(t)){dt=new Date(yr,now.getMonth(),now.getDate()+1)}
+  else if(/\btoday\b/i.test(t)){dt=new Date(yr,now.getMonth(),now.getDate())}
+  const to24=(h,mi,ap)=>{h=+h;ap=(ap||'').toLowerCase().replace(/\./g,'');if(ap==='pm'&&h<12)h+=12;if(ap==='am'&&h===12)h=0;return p2(h)+':'+p2(mi||0)};
+  let time='',end='';
+  if(m=t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?\s*(?:-|–|—|to|until)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)/i)){
+    time=to24(m[1],m[2],m[3]||m[6]);end=to24(m[4],m[5],m[6]);
+    if(!m[3]&&time>end)time=to24(m[1],m[2],/^p/i.test(m[6])?'am':'pm');
+  }else if(m=t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)/i)){time=to24(m[1],m[2],m[3])}
+  else if(m=t.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/)){time=p2(+m[1])+':'+m[2]}
+  const z=(t.match(/\b(PST|PDT|PT|MST|MDT|MT|CST|CDT|CT|EST|EDT|ET)\b/)||[])[1];
+  const urls=t.match(/https?:\/\/[^\s<>"')]+/g)||[];
+  let link=urls.find(u=>/zoom\.us|meet\.google|teams\.microsoft|webex|whereby/i.test(u))||'';
+  let loc=((t.match(/^\s*(?:where|location|address|venue)\s*[:\-]\s*(.+)$/im)||[])[1]||'').trim();
+  if(/^https?:/i.test(loc)){link=link||loc;loc=''}
+  const lines=t.split('\n').map(x=>x.trim()).filter(Boolean);
+  let title=((t.match(/^\s*(?:subject|title|event|topic)\s*[:\-]\s*(.+)$/im)||[])[1]||'').trim()||lines.find(x=>/[a-z]/i.test(x)&&!/^(from|to|cc|bcc|sent|date|when|time|where|location)\b/i.test(x))||'';
+  title=title.replace(/^((re|fwd?|invitation|updated invitation)\s*:\s*)+/i,'').slice(0,80);
+  return{title,date:dt?dt.getFullYear()+'-'+p2(dt.getMonth()+1)+'-'+p2(dt.getDate()):'',time,endTime:end,tz:z?TZM[z]:null,link,loc,note:t.trim().slice(0,1000),type:link?'Meeting':'Event',mode:link?'Virtual':(loc?'In person':'')};
+}
+async function ocr(file){
+  if(!window.Tesseract)await new Promise((ok,no)=>{const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';sc.onload=ok;sc.onerror=no;document.head.appendChild(sc)});
+  return (await Tesseract.recognize(file,'eng')).data.text;
+}
+async function impGo(file){
+  let txt=$('impTxt').value;
+  if(file){
+    $('impSt').textContent='Reading screenshot… (the first time downloads about 10 MB)';
+    try{txt=await ocr(file);$('impTxt').value=txt}catch(e){$('impSt').textContent='Could not read the image. Paste the text instead.';return}
+  }
+  if(!txt.trim()){$('impSt').textContent='Paste some text or choose a screenshot first.';return}
+  const d=parseText(txt);
+  S.mode='events';save();$('impDlg').close();
+  window.__draft=d;openForm();window.__draft=null;render();
+  if(!d.date)setTimeout(()=>alert('I could not find a date. Please set it in the form.'),150);
+}
+$('impBtn').onclick=()=>{$('impTxt').value='';$('impFile').value='';$('impSt').textContent='';$('impDlg').showModal()};
+$('impClose').onclick=()=>$('impDlg').close();
+$('impRead').onclick=()=>impGo(null);
+$('impFile').onchange=e=>{if(e.target.files[0])impGo(e.target.files[0])};
+$('impTxt').addEventListener('paste',e=>{const f=[...((e.clipboardData&&e.clipboardData.files)||[])].find(x=>x.type.startsWith('image/'));if(f){e.preventDefault();impGo(f)}});
 const r0=render;render=()=>{r0();hydrate()};
 render();setInterval(renderStrip,30000);
 if(sess){showApp();loadCloud().then(()=>syncNow(true))}else showLogin();
