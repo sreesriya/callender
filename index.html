@@ -130,7 +130,7 @@ body{touch-action:manipulation}
 
   <div id="list"></div>
 
-  <div class="where" style="margin-top:18px">Version 11 · Oct 31</div>
+  <div class="where" style="margin-top:18px">Version 12 · Oct 31</div>
 </div>
 
 <div id="login" style="position:fixed;inset:0;background:var(--bg);z-index:50;display:none;align-items:center;justify-content:center;padding:20px">
@@ -181,7 +181,7 @@ body{touch-action:manipulation}
   </div>
   <div id="postF" class="fl">
     <label>Platforms</label><div id="pPlat" class="mc"></div>
-    <label>Accounts</label><div id="pAcc" class="mc"></div><div id="mediaW"><label>Photos / videos (auto-deleted 30 days after the post date)</label><input type="file" id="mFile" accept="image/*,video/*" multiple><div id="mPrev"></div></div>
+    <label>Accounts</label><div id="pAcc" class="mc"></div>
     <div class="g2"><div><label>Format</label><select id="pFmt"></select></div>
     <div><label>Status</label><select id="pStat"></select></div></div>
     <label>Timezone</label><select id="pTz"></select>
@@ -189,6 +189,7 @@ body{touch-action:manipulation}
   <div id="linkW"><label>Link (Zoom, post URL…)</label><input id="fLink" placeholder="https://"><input id="fLinkLbl" placeholder="Button text, e.g. Join Zoom" style="margin-top:6px"></div>
   <div id="locF"><label>Location (opens in Google Maps)</label><input id="fLoc" placeholder="Address or Google Maps link"><input id="fLocLbl" placeholder="Display text, e.g. Staplehouse" style="margin-top:6px"></div>
   <label>Reminder</label><select id="fRem"><option value="0">No reminder</option><option value="5">5 min before</option><option value="10">10 min before</option><option value="15">15 min before</option><option value="30">30 min before</option><option value="60">1 hour before</option><option value="120">2 hours before</option></select>
+  <div id="mediaW"><label>Photos / videos (tickets, screenshots; auto-deleted 30 days after the date)</label><input type="file" id="mFile" accept="image/*,video/*" multiple><div id="mPrev"></div></div>
   <label>Notes</label><textarea id="fNote" rows="3"></textarea>
   <div style="display:flex;justify-content:space-between;margin-top:16px">
     <button class="btn" id="cancel">Cancel</button><button class="btn pri" id="save">Save</button>
@@ -276,7 +277,7 @@ function render(){
       let when=i.allday?'<b>All day</b>':`<b>${hm(i.ts,own)} ${abbr(i.ts,own)}</b>`+(i.endTs>i.ts&&i.type!=='Flight'?' – '+hm(i.endTs,own):''),extra='';
       if(i.type==='Flight'&&i.adate){const a=inst(i.adate,i.atime,i.atz);when=`<b>${hm(i.ts,i.tz)} ${abbr(i.ts,i.tz)}</b> → <b>${hm(a,i.atz)} ${abbr(a,i.atz)}</b> · ${i.dcode||''} → ${i.acode||i.acity||city(i.atz)}`;extra=`<div class="prim" style="margin-top:6px">Arrival</div><div class="chips">${chips(a,i.atz)}</div>`}
       html+=`<div class="card" style="--k:${TYPES[i.type]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)} ${i.source?`<span class="pill" style="--p:#6b6a63">${esc(i.source)}${i.edited?' · edited':''}</span>`:''}</div><div class="prim">${i.city&&i.type!=='Flight'?esc(i.city)+' · ':''}${i.type}${i.mode?' · '+i.mode:''} · ${when}</div></div></div>
-      ${i.type==='Flight'?'<div class="prim" style="margin-top:6px">Departure</div>':''}${i.allday?'':`<div class="chips">${chips(i.ts,i.tz,i.type==='Flight'?0:i.endTs)}</div>`}${extra}${acts(i)}</div>`;
+      ${i.type==='Flight'?'<div class="prim" style="margin-top:6px">Departure</div>':''}${i.allday?'':`<div class="chips">${chips(i.ts,i.tz,i.type==='Flight'?0:i.endTs)}</div>`}${extra}${mediaHtml(i)}${acts(i)}</div>`;
     }else{
       html+=`<div class="card" style="--k:${STAT[i.stat]||'#888'}"><div class="row1"><div><div class="ttl">${esc(i.title)}</div>
       <div style="margin-top:4px"><span class="pill" style="--p:${STAT[i.stat]}">${i.stat}</span>${arr(i.plat).map(x=>`<span class="pill" style="--p:${PLAT[x]||'#888'}">${x}</span>`).join('')}${arr(i.acc).map(x=>`<span class="pill" style="--p:${ACC[x]||'#888'}">${x}</span>`).join('')}<span class="pill" style="--p:#8a8578">${i.fmt}</span></div></div></div>
@@ -375,7 +376,7 @@ $('save').onclick=()=>{
   const post=!!$('dlg').dataset.post;
   const ck=(c,z)=>$(c).value.trim()&&!cityTz($(c).value)&&!$(z).value;
   if(!post&&(($('fType').value==='Flight')?(ck('dCity','dTz')||ck('aCity','aTz')):ck('fCity','fTz'))){alert('Choose a timezone for the city you typed.');return}
-  const o={id:editId||Date.now(),kind:post?'post':'event',title:$('fTitle').value||'Untitled',date:$('fDate').value,time:$('fTime').value,link:$('fLink').value,linkLabel:$('fLinkLbl').value,note:$('fNote').value,rem:+$('fRem').value};
+  const o={id:editId||Date.now(),kind:post?'post':'event',title:$('fTitle').value||'Untitled',date:$('fDate').value,time:$('fTime').value,link:$('fLink').value,linkLabel:$('fLinkLbl').value,note:$('fNote').value,media:mediaCur,rem:+$('fRem').value};
   if(post)Object.assign(o,{tz:$('pTz').value,plat:chk('pPlat'),acc:chk('pAcc'),media:mediaCur,fmt:$('pFmt').value,stat:$('pStat').value});
   else{Object.assign(o,{tz:$('fTz').value,type:$('fType').value,loc:$('fLoc').value,locLabel:$('fLocLbl').value,city:$('fCity').value,endTime:$('fEnd').value,mode:$('fType').value==='Flight'?'':$('fMode').value});
     if(o.type==='Flight')Object.assign(o,{adate:$('aDate').value,atime:$('aTime').value,atz:$('aTz').value,acity:$('aCity').value,dcity:$('dCity').value,dcode:$('dCode').value.toUpperCase(),acode:$('aCode').value.toUpperCase(),date:$('dDate').value,time:$('dTime').value,tz:$('dTz').value,bp:bpData,link:'',loc:'',endTime:'',title:$('fTitle').value||(($('dCode').value||$('dCity').value)+' → '+($('aCode').value||$('aCity').value)).toUpperCase()});}
@@ -550,6 +551,7 @@ $('impClose').onclick=()=>$('impDlg').close();
 $('impRead').onclick=()=>impGo(null);
 $('impFile').onchange=e=>{if(e.target.files[0])impGo(e.target.files[0])};
 $('impTxt').addEventListener('paste',e=>{const f=[...((e.clipboardData&&e.clipboardData.files)||[])].find(x=>x.type.startsWith('image/'));if(f){e.preventDefault();impGo(f)}});
+const mediaHtml=i=>arr(i.media).length?`<div class="mg">${i.media.map(m=>`<div class="mt" data-mp="${esc(m.path)}" data-ty="${esc(m.type)}"></div>`).join('')}</div>`:'';
 const r0=render;render=()=>{r0();hydrate()};
 render();setInterval(renderStrip,30000);
 if(sess){showApp();loadCloud().then(()=>syncNow(true))}else showLogin();
